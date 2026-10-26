@@ -6,7 +6,7 @@ import { pandoc } from './pandoc-wasm.js';
 import {
   MARKDOWN_READER_NO_AUTO_IDS,
   MARKDOWN_WRITER,
-  pandocWithMathFont,
+  convertWithAstPasses,
   buildExportArgs,
   buildImportArgs,
   stripEpubAnchorPrefixes,
@@ -425,6 +425,18 @@ function epubCoverFile({ title, author }) {
   documento —un manual quiere índice y una nota de dos párrafos no— y lo que el
   documento no diga lo ponen las opciones generales.
 */
+/*
+  El ancho del texto en la página, que solo hace falta para convertir un ancho
+  de columna en número de columnas. Sin papel ni márgenes propios, el de la
+  función que lo usa.
+*/
+function textWidthCm({ paperCm, marginsCm = {} } = {}) {
+  if (!paperCm) return undefined;
+  const left = typeof marginsCm.left === 'number' ? marginsCm.left : 2.5;
+  const right = typeof marginsCm.right === 'number' ? marginsCm.right : 2.5;
+  return Math.max(1, paperCm.width - left - right);
+}
+
 function documentOutlineOptions(markdown) {
   const settings = documentSettings();
   const { frontMatter } = splitFrontMatter(typeof markdown === 'string' ? markdown : '');
@@ -862,9 +874,15 @@ async function exportDocument({
         pandocArgs += ` --epub-cover-image=/${cover.name}`;
       }
     }
-    const resultadoBytes = await pandocWithMathFont(
+    const api = documentFormatApi();
+    const officeStyles = exportFormat && api ? api.toOfficeStyles(exportFormat) : {};
+    const office = normalizedFormat === 'docx' || normalizedFormat === 'odt';
+    const resultadoBytes = await convertWithAstPasses(
       (args, input) => pandoc(args, input, base64, extraFiles),
-      pandocArgs, normalized, exportFormat?.font,
+      pandocArgs, normalized, {
+        mathFont: exportFormat?.font,
+        columns: office ? { kind: normalizedFormat, toc: outline.toc, textWidthCm: textWidthCm(officeStyles) } : null,
+      },
     );
     if (iosTimer) clearTimeout(iosTimer);
 
@@ -887,9 +905,7 @@ async function exportDocument({
       El formato del texto va después del índice: los dos reescriben el mismo
       archivo, y hacerlo al final evita rehacer el ZIP dos veces por nada.
     */
-    if (normalizedFormat === 'docx' || normalizedFormat === 'odt') {
-      const api = documentFormatApi();
-      const officeStyles = exportFormat && api ? api.toOfficeStyles(exportFormat) : {};
+    if (office) {
       finalBytes = await applyOfficeFormat(finalBytes, officeStyles, normalizedFormat);
     }
     if (normalizedFormat === 'epub') {
@@ -981,9 +997,9 @@ async function generateHtml({
     pandocArgs += citations.args;
     withLanguage = withoutPortableBibliographyMetadata(withLanguage);
     withLanguage = withBibliographySection(withLanguage, citations);
-    const resultadoBytes = await pandocWithMathFont(
+    const resultadoBytes = await convertWithAstPasses(
       (args, input) => pandoc(args, input, base64, citations.files),
-      pandocArgs, withLanguage, standalone ? resolvedDocumentFormat(normalized)?.font : '',
+      pandocArgs, withLanguage, { mathFont: standalone ? resolvedDocumentFormat(normalized)?.font : '' },
     );
     if (!resultadoBytes || resultadoBytes.length === 0) {
       throw new Error('pandoc_empty_output');
@@ -1085,9 +1101,9 @@ async function generateLatex({
     pandocArgs += citations.args;
     normalized = withoutPortableBibliographyMetadata(normalized);
     normalized = withBibliographySection(normalized, citations);
-    const resultadoBytes = await pandocWithMathFont(
+    const resultadoBytes = await convertWithAstPasses(
       (args, input) => pandoc(args, input, base64, citations.files),
-      pandocArgs, normalized, resolvedDocumentFormat(normalized)?.font,
+      pandocArgs, normalized, { mathFont: resolvedDocumentFormat(normalized)?.font },
     );
     if (!resultadoBytes || resultadoBytes.length === 0) {
       throw new Error('pandoc_empty_output');

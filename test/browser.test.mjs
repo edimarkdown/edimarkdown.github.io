@@ -5153,6 +5153,199 @@ test('una lista, una cita o las notas más largas que la página se reparten por
 });
 
 /*
+  Un bloque a varias columnas no se reparte como una lista: empujar uno de sus
+  puntos lo descoloca dentro de su columna, y al imprimir cada empujón era una
+  página nueva con media hoja en blanco. Pasaba con una lista de comprobación a
+  cuatro columnas más larga que la página. Ahora se reparte como en el papel:
+  las columnas de cada página se llenan y el juego se cierra al final de la
+  hoja, de modo que ningún punto queda atravesado por el hueco entre hojas.
+*/
+test('un bloque en columnas más largo que la página se reparte por páginas', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#new-tab-btn').click();
+  const listas = ['Una', 'Dos', 'Tres'].map(nombre => [
+    `## ${nombre}`,
+    Array.from({ length: 150 }, (_, i) => `- [ ] ${i + 1}`).join('\n'),
+  ].join('\n\n'));
+  const documento = ['# Lista', '<div style="column-count:4">', ...listas, '</div>'].join('\n\n');
+  await page.locator('#markdown-input').fill(documento);
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('#html-output [data-column-end]').length > 1);
+
+  const reparto = await page.evaluate(() => {
+    const columnas = document.querySelector('#html-output > div');
+    const cortes = [...document.querySelectorAll('.page-sheet')].slice(0, -1)
+      .map(hoja => hoja.getBoundingClientRect().bottom);
+    const partidos = [...columnas.querySelectorAll('li, h2')]
+      .filter((pieza) => {
+        const caja = pieza.getBoundingClientRect();
+        return cortes.some(corte => caja.top < corte - 2 && caja.bottom > corte + 2);
+      })
+      .map(pieza => pieza.textContent.trim());
+    return {
+      marcado: columnas.hasAttribute('data-page-flow'),
+      abierto: columnas.hasAttribute('data-page-split'),
+      bajado: columnas.hasAttribute('data-page-start'),
+      saltosDentro: columnas.querySelectorAll('[data-page-start], [data-page-split]').length,
+      partidos,
+    };
+  });
+  assert.deepEqual(reparto, { marcado: true, abierto: false, bajado: false, saltosDentro: 0, partidos: [] });
+});
+
+/*
+  Y la hoja sigue siendo editable: escribir en un punto de la lista devuelve el
+  mismo Markdown, con su `div` de columnas. Turndown tira los `div`, y una sola
+  letra escrita en la hoja dejaba la lista en una columna. Las marcas del
+  reparto tampoco pasan al documento.
+*/
+test('escribir en la hoja conserva el bloque en columnas', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#new-tab-btn').click();
+  const lista = Array.from({ length: 200 }, (_, i) => `- [ ] ${i + 1}`).join('\n');
+  const documento = `# Lista\n\n<div style="column-count:4; column-gap:10px;">\n\n## Una\n\n${lista}\n\n</div>\n`;
+  await page.locator('#markdown-input').fill(documento);
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('#html-output [data-column-end]').length > 0);
+
+  await page.locator('#html-output [data-column-end]').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' hecho');
+  await page.waitForFunction(() => document.getElementById('markdown-input').value.includes(' hecho'));
+
+  const markdown = await page.locator('#markdown-input').inputValue();
+  const punto = await page.locator('#html-output li', { hasText: 'hecho' }).textContent();
+  assert.equal(markdown.trim(), documento.replace(`- [ ] ${punto.replace(' hecho', '').trim()}\n`, `- [ ] ${punto.trim()}\n`).trim());
+});
+
+/*
+  El hueco entre dos hojas, dentro de un bloque en columnas, lo ocupa un
+  pseudoelemento. Pulsar ahí dejaba en Firefox el cursor al principio del
+  documento, y lo que se escribiera iba al título.
+*/
+test('pulsar en el hueco entre hojas deja el cursor en el bloque en columnas', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#new-tab-btn').click();
+  const lista = Array.from({ length: 300 }, (_, i) => `- [ ] ${i + 1}`).join('\n');
+  await page.locator('#markdown-input').fill(`# Lista\n\n<div style="column-count:4">\n\n${lista}\n\n</div>\n`);
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('#html-output [data-column-end]').length > 0);
+
+  const punto = await page.evaluate(() => {
+    const primera = document.querySelector('.page-sheet');
+    document.getElementById('preview-desk').scrollBy(0, primera.getBoundingClientRect().bottom - 400);
+    const hoja = primera.getBoundingClientRect();
+    const bloque = document.querySelector('#html-output > div').getBoundingClientRect();
+    return { x: bloque.left + bloque.width * 0.4, y: hoja.bottom + 10 };
+  });
+  await page.mouse.click(punto.x, punto.y);
+  const donde = await page.evaluate(() => {
+    const nodo = getSelection().anchorNode;
+    return nodo ? (nodo.nodeType === 3 ? nodo.parentElement : nodo).closest('li, h1')?.tagName : null;
+  });
+  assert.equal(donde, 'LI');
+});
+
+/*
+  Una tabla más larga que la página se parte por filas, como en el papel. Antes
+  pasaba entera y el hueco entre hojas atravesaba las filas del corte. La
+  cabecera se repite arriba de cada página en la capa de las hojas, fuera del
+  texto: la hoja no gana nada que editar y el Markdown no cambia.
+*/
+test('una tabla más larga que la página se parte por filas', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#new-tab-btn').click();
+  const filas = Array.from({ length: 90 }, (_, i) => `| Fila ${i + 1} | Valor ${i + 1} |`).join('\n');
+  const documento = `# Tabla\n\n| Acción | Atajo |\n| :-- | :-- |\n${filas}\n`;
+  await page.locator('#markdown-input').fill(documento);
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('#html-output tr[data-page-start]').length > 1);
+
+  const reparto = await page.evaluate(() => {
+    const hojas = [...document.querySelectorAll('.page-sheet')].map(hoja => hoja.getBoundingClientRect());
+    const dentro = caja => hojas.some(hoja => caja.top >= hoja.top - 1 && caja.bottom <= hoja.bottom + 1);
+    const texto = (celda) => {
+      const rango = document.createRange();
+      rango.selectNodeContents(celda);
+      return rango.getBoundingClientRect();
+    };
+    const tabla = document.querySelector('#html-output table');
+    const inicios = [...tabla.querySelectorAll('tr[data-page-start]')];
+    const cabeceras = [...document.querySelectorAll('#page-sheets .repeated-table-header')];
+    return {
+      partida: tabla.hasAttribute('data-page-split'),
+      atravesadas: [...tabla.rows].filter(fila => ![...fila.cells].every(celda => dentro(texto(celda))))
+        .map(fila => fila.textContent.trim()),
+      cabeceras: cabeceras.length === inicios.length,
+      cabeceraEnSuSitio: cabeceras.every((cabecera, indice) => {
+        const caja = cabecera.getBoundingClientRect();
+        return dentro(caja) && caja.bottom <= texto(inicios[indice].cells[0]).top + 1
+          && cabecera.textContent.includes('Acción');
+      }),
+      fueraDelTexto: !document.querySelector('#html-output .repeated-table-header'),
+    };
+  });
+  assert.deepEqual(reparto, {
+    partida: true, atravesadas: [], cabeceras: true, cabeceraEnSuSitio: true, fueraDelTexto: true,
+  });
+
+  // Escribir en la fila que estrena página devuelve el mismo Markdown.
+  const primera = page.locator('#html-output tr[data-page-start] td').first();
+  const nombre = (await primera.textContent()).trim();
+  await primera.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' bis');
+  await page.waitForFunction(() => document.getElementById('markdown-input').value.includes(' bis'));
+  const markdown = await page.locator('#markdown-input').inputValue();
+  assert.equal(markdown.trim(), documento.replace(`| ${nombre} |`, `| ${nombre} bis |`).trim());
+});
+
+/*
+  Con el tema oscuro, el PDF salía con el fondo de la ventana en negro y con
+  los títulos, el código y las tablas en tonos claros. El papel se imprime
+  siempre en claro, y al terminar vuelve el tema de la pantalla.
+*/
+test('con el tema oscuro se imprime en claro', async (t) => {
+  const { context, page } = await openApp({ colorScheme: 'dark' });
+  t.after(() => context.close());
+
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true);
+  // El botón de imprimir: el tema ya es el claro cuando se llama a imprimir.
+  const alImprimir = await page.evaluate(() => new Promise((resolve) => {
+    window.print = () => resolve(document.documentElement.classList.contains('dark'));
+    document.getElementById('print-btn').click();
+  }));
+  assert.equal(alImprimir, false);
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true);
+
+  // Y el Ctrl+P del navegador, que solo avisa con `beforeprint`.
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  await page.emulateMedia({ media: 'print' });
+  const colores = await page.evaluate(() => ({
+    fondo: getComputedStyle(document.getElementById('main-container')).backgroundColor,
+    titulo: getComputedStyle(document.querySelector('#html-output h1') || document.body).color,
+  }));
+  assert.equal(colores.fondo, 'rgb(255, 255, 255)');
+  assert.notEqual(colores.titulo, 'rgb(241, 245, 249)');
+  await page.emulateMedia({ media: 'screen' });
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true);
+});
+
+/*
   El resumen del formato enseña siempre los tres ajustes que se consultan a
   diario —tamaño, tipo de letra e interlineado—, con un guion donde no hay nada
   fijado: una píldora que cambia de contenido según lo que haya obliga a abrir

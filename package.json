@@ -1,6 +1,6 @@
 {
   "name": "edimarkweb.github.io",
-  "version": "3.2.5",
+  "version": "3.3.0",
   "description": "> **Nota**   > Este repositorio ha sido trasladado a [edimarkweb/edimarkweb.github.io](https://github.com/edimarkweb/edimarkweb.github.io). La aplicación se publica ahora en [https://edimarkweb.github.io/](https://edimarkweb.github.io/).",
   "main": "i18n.js",
   "scripts": {

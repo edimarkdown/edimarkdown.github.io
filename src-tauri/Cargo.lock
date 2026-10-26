@@ -985,7 +985,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "edimarkweb"
-version = "3.2.5"
+version = "3.3.0"
 dependencies = [
  "gtk",
  "serde",

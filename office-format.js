@@ -255,57 +255,94 @@ export function applyDocxTheme(themeXml, fontName) {
 }
 
 /*
-  Los márgenes viven en la sección, al final del cuerpo. Pandoc la deja
-  vacía (`<w:sectPr />`), de modo que casi siempre hay que abrirla.
+  Los hijos de una sección, en el orden que fija el esquema de Word: con
+  `w:pgMar` delante de `w:pgSz`, o `w:type` detrás, se niega a abrir el
+  documento.
 */
+const DOCX_SECTPR_ORDER = [
+  'w:headerReference', 'w:footerReference', 'w:footnotePr', 'w:endnotePr',
+  'w:type', 'w:pgSz', 'w:pgMar', 'w:paperSrc', 'w:pgBorders', 'w:lnNumType',
+  'w:pgNumType', 'w:cols', 'w:formProt', 'w:vAlign', 'w:noEndnote',
+  'w:titlePg', 'w:textDirection', 'w:bidi', 'w:rtlGutter', 'w:docGrid',
+  'w:printerSettings', 'w:sectPrChange',
+];
+
+/*
+  Escribe un hijo en cada sección del documento, sustituyendo el que ya
+  hubiera. Normalmente solo hay una, al final del cuerpo, y Pandoc la deja
+  vacía (`<w:sectPr />`); un bloque en columnas añade las suyas, y el papel y
+  los márgenes tienen que ser los mismos en todas.
+*/
+function setDocxSectionChild(documentXml, name, build) {
+  if (!/<w:sectPr\b/.test(documentXml)) {
+    return documentXml.replace(/<\/w:body>/, () => `<w:sectPr>${build('')}</w:sectPr></w:body>`);
+  }
+  return documentXml.replace(
+    /<w:sectPr\b([^>]*?)\s*\/>|<w:sectPr\b([^>]*)>([\s\S]*?)<\/w:sectPr>/g,
+    (match, emptyAttributes, attributes, inner) => {
+      const children = (inner || '').match(/<[\w:]+[^>]*\/>|<([\w:]+)[^>]*>[\s\S]*?<\/\1>/g) || [];
+      const previous = children.find(child => docxElementName(child) === name) || '';
+      const ordered = [...children.filter(child => docxElementName(child) !== name), build(previous)]
+        .map((child, index) => ({ child, index, rank: DOCX_SECTPR_ORDER.indexOf(docxElementName(child)) }))
+        .sort((a, b) => {
+          const rankA = a.rank === -1 ? DOCX_SECTPR_ORDER.length : a.rank;
+          const rankB = b.rank === -1 ? DOCX_SECTPR_ORDER.length : b.rank;
+          return rankA - rankB || a.index - b.index;
+        })
+        .map(entry => entry.child);
+      return `<w:sectPr${emptyAttributes ?? attributes}>${ordered.join('')}</w:sectPr>`;
+    },
+  );
+}
+
+// Pulgada arriba, abajo y a los lados, y 1,25 cm para cabecera y pie.
+const DOCX_PAGE_MARGIN_ATTRIBUTES = [
+  ['top', 1440], ['right', 1440], ['bottom', 1440], ['left', 1440],
+  ['header', 708], ['footer', 708], ['gutter', 0],
+];
+
 export function applyDocxMargins(documentXml, marginsCm) {
   if (typeof documentXml !== 'string' || !documentXml) return documentXml;
   const sides = Object.keys(marginsCm || {});
   if (!sides.length) return documentXml;
-  const attribute = side => (
-    typeof marginsCm[side] === 'number'
-      ? ` w:${side}="${round(marginsCm[side] * TWIPS_PER_CM)}"`
-      : ''
-  );
-  const pgMar = `<w:pgMar${attribute('top')}${attribute('right')}${attribute('bottom')}${attribute('left')} />`;
-  if (/<w:sectPr\s*\/>/.test(documentXml)) {
-    return documentXml.replace(/<w:sectPr\s*\/>/, () => `<w:sectPr>${pgMar}</w:sectPr>`);
-  }
-  if (/<w:sectPr\b[^>]*>/.test(documentXml)) {
-    const limpio = documentXml.replace(/<w:pgMar\b[^>]*\/>/, '');
-    /*
-      Detrás del tamaño de página si ya está escrito: el esquema de Word fija
-      el orden de la sección —`w:pgSz` y luego `w:pgMar`— y con los dos al
-      revés se niega a abrir el documento.
-    */
-    if (/<w:pgSz\b[^>]*\/>/.test(limpio)) {
-      return limpio.replace(/<w:pgSz\b[^>]*\/>/, match => `${match}${pgMar}`);
-    }
-    return limpio.replace(/(<w:sectPr\b[^>]*>)/, (match, open) => `${open}${pgMar}`);
-  }
-  return documentXml.replace(/<\/w:body>/, () => `<w:sectPr>${pgMar}</w:sectPr></w:body>`);
+  /*
+    El esquema exige los siete atributos. Los lados que el documento no fija
+    conservan el valor que ya tuviera la sección o, si no tenía, el que Word
+    usa por omisión.
+  */
+  return setDocxSectionChild(documentXml, 'w:pgMar', (previous) => {
+    const attributes = DOCX_PAGE_MARGIN_ATTRIBUTES.map(([side, fallback]) => {
+      const own = typeof marginsCm[side] === 'number' ? round(marginsCm[side] * TWIPS_PER_CM) : null;
+      const kept = previous.match(new RegExp(`\\sw:${side}="(-?\\d+)"`));
+      return ` w:${side}="${own ?? (kept ? kept[1] : fallback)}"`;
+    });
+    return `<w:pgMar${attributes.join('')} />`;
+  });
 }
 
-/*
-  El tamaño del papel, en la misma sección que los márgenes. Va delante de
-  `w:pgMar` porque el esquema de Word exige ese orden y, si se invierte, Word
-  se niega a abrir el archivo.
-*/
+/* El tamaño del papel, en las mismas secciones que los márgenes. */
 export function applyDocxPageSize(documentXml, paperCm) {
   if (typeof documentXml !== 'string' || !documentXml) return documentXml;
   if (!paperCm || !paperCm.width || !paperCm.height) return documentXml;
   const orient = paperCm.orientation === 'landscape' ? ' w:orient="landscape"' : '';
-  const pgSz = `<w:pgSz w:w="${round(paperCm.width * TWIPS_PER_CM)}" w:h="${round(paperCm.height * TWIPS_PER_CM)}"${orient} />`;
-  if (/<w:pgSz\b[^>]*\/>/.test(documentXml)) {
-    return documentXml.replace(/<w:pgSz\b[^>]*\/>/, () => pgSz);
-  }
-  if (/<w:sectPr\s*\/>/.test(documentXml)) {
-    return documentXml.replace(/<w:sectPr\s*\/>/, () => `<w:sectPr>${pgSz}</w:sectPr>`);
-  }
-  if (/<w:sectPr\b[^>]*>/.test(documentXml)) {
-    return documentXml.replace(/(<w:sectPr\b[^>]*>)/, (match, open) => `${open}${pgSz}`);
-  }
-  return documentXml.replace(/<\/w:body>/, () => `<w:sectPr>${pgSz}</w:sectPr></w:body>`);
+  return setDocxSectionChild(
+    documentXml,
+    'w:pgSz',
+    () => `<w:pgSz w:w="${round(paperCm.width * TWIPS_PER_CM)}" w:h="${round(paperCm.height * TWIPS_PER_CM)}"${orient} />`,
+  );
+}
+
+/*
+  Tras un bloque en columnas, el resto del documento es otra sección: la del
+  final del cuerpo. Tiene que empezar en la misma página, no en una nueva, que
+  es lo que hace Word con una sección que no dice cómo empieza.
+*/
+export function applyDocxColumnSections(documentXml) {
+  if (typeof documentXml !== 'string' || !documentXml) return documentXml;
+  if ((documentXml.match(/<w:sectPr\b/g) || []).length < 2) return documentXml;
+  const last = documentXml.lastIndexOf('<w:sectPr');
+  return documentXml.slice(0, last)
+    + setDocxSectionChild(documentXml.slice(last), 'w:type', () => '<w:type w:val="continuous" />');
 }
 
 /* Word parte las palabras solo si el documento se lo pide. */
@@ -558,4 +595,37 @@ export function applyOdtMargins(stylesXml, marginsCm) {
     });
     return updated;
   });
+}
+
+/*
+  Las secciones en columnas del ODT. Pandoc escribe la sección tal cual, pero
+  su estilo tiene que estar entre los automáticos del contenido, que genera
+  Pandoc; se añade aquí, con las medidas que lleva el propio nombre
+  (`odtColumnStyleName`). Las columnas se equilibran al final, como en la hoja.
+*/
+export function applyOdtColumnSections(contentXml) {
+  if (typeof contentXml !== 'string' || !contentXml) return contentXml;
+  const names = new Set(
+    [...contentXml.matchAll(/<text:section\b[^>]*text:style-name="(EdiMarkdownColumns_\d+_[\d.]+cm(?:_rule)?)"/g)]
+      .map(match => match[1])
+      .filter(name => !new RegExp(`<style:style\\b[^>]*style:name="${name.replace(/\./g, '\\.')}"`).test(contentXml)),
+  );
+  if (!names.size) return contentXml;
+  const styles = [...names].map((name) => {
+    const [, count, gap, rule] = name.match(/^EdiMarkdownColumns_(\d+)_([\d.]+cm)(_rule)?$/);
+    const separator = rule
+      ? '<style:column-sep style:width="0.02cm" style:color="#000000" style:height="100%" style:vertical-align="top" />'
+      : '';
+    return `<style:style style:name="${name}" style:family="section">`
+      + '<style:section-properties text:dont-balance-text-columns="false" style:editable="false">'
+      + `<style:columns fo:column-count="${count}" fo:column-gap="${gap}">${separator}</style:columns>`
+      + '</style:section-properties></style:style>';
+  }).join('');
+  if (/<office:automatic-styles\s*\/>/.test(contentXml)) {
+    return contentXml.replace(/<office:automatic-styles\s*\/>/, () => `<office:automatic-styles>${styles}</office:automatic-styles>`);
+  }
+  if (/<office:automatic-styles\b[^>]*>/.test(contentXml)) {
+    return contentXml.replace(/(<office:automatic-styles\b[^>]*>)/, (match, open) => `${open}${styles}`);
+  }
+  return contentXml.replace(/(<office:body\b)/, (match, body) => `<office:automatic-styles>${styles}</office:automatic-styles>${body}`);
 }

@@ -4,11 +4,13 @@ import test from 'node:test';
 import {
   INDENT_CM,
   TWIPS_PER_CM,
+  applyDocxColumnSections,
   applyDocxHyphenation,
   applyDocxMargins,
   applyDocxPageSize,
   applyDocxStyles,
   applyDocxTheme,
+  applyOdtColumnSections,
   applyOdtMargins,
   applyOdtPageSize,
   applyOdtStyles,
@@ -115,13 +117,14 @@ test('el H1 del DOCX puede empezar siempre en página nueva', () => {
 
 test('los márgenes abren la sección vacía que deja Pandoc', () => {
   const result = applyDocxMargins('<w:body><w:p /><w:sectPr /></w:body>', { top: 2, left: 3 });
-  assert.match(result, /<w:sectPr><w:pgMar w:top="1134" w:left="1701" \/><\/w:sectPr>/);
+  // El esquema de Word exige los siete atributos: lo que no se fija, por omisión.
+  assert.match(result, /<w:sectPr><w:pgMar w:top="1134" w:right="1440" w:bottom="1440" w:left="1701" w:header="708" w:footer="708" w:gutter="0" \/><\/w:sectPr>/);
 });
 
 test('una sección que ya existe conserva lo suyo y cambia de márgenes', () => {
-  const source = '<w:body><w:sectPr><w:pgSz w:w="11906" /><w:pgMar w:top="100" /></w:sectPr></w:body>';
+  const source = '<w:body><w:sectPr><w:pgSz w:w="11906" /><w:pgMar w:top="100" w:left="200" /></w:sectPr></w:body>';
   const result = applyDocxMargins(source, { top: 2 });
-  assert.match(result, /<w:pgMar w:top="1134" \/>/);
+  assert.match(result, /<w:pgMar w:top="1134" w:right="1440" w:bottom="1440" w:left="200" /);
   assert.match(result, /<w:pgSz w:w="11906" \/>/);
   assert.equal((result.match(/<w:pgMar/g) || []).length, 1);
 });
@@ -313,3 +316,55 @@ test('sin tamaño de papel el archivo se queda como estaba', () => {
   assert.equal(applyDocxPageSize('<w:sectPr />', null), '<w:sectPr />');
   assert.equal(applyOdtPageSize(ODT_STYLES, null), ODT_STYLES);
 });
+
+/*
+  Columnas. En Word, cada bloque en columnas es una sección, de modo que el
+  papel y los márgenes tienen que llegar a todas, y la que va detrás del
+  bloque tiene que seguir en la misma página.
+*/
+const DOCX_WITH_COLUMNS = '<w:body><w:p><w:pPr><w:sectPr><w:type w:val="continuous" /></w:sectPr></w:pPr></w:p>'
+  + '<w:p><w:pPr><w:sectPr><w:type w:val="continuous" /><w:cols w:num="4" w:space="150" /></w:sectPr></w:pPr></w:p>'
+  + '<w:sectPr /></w:body>';
+
+test('el DOCX con columnas lleva el papel y los márgenes a cada sección', () => {
+  const result = applyDocxMargins(
+    applyDocxPageSize(applyDocxColumnSections(DOCX_WITH_COLUMNS), { width: 21, height: 29.7 }),
+    { top: 1.8, right: 1.8, bottom: 1.8, left: 1.8 },
+  );
+  const sections = result.match(/<w:sectPr>[\s\S]*?<\/w:sectPr>/g);
+  assert.equal(sections.length, 3);
+  sections.forEach((section) => {
+    assert.match(section, /<w:pgSz w:w="11906" w:h="16838" \/>/);
+    assert.match(section, /<w:pgMar w:top="1020" w:right="1020" w:bottom="1020" w:left="1020" /);
+    // El orden del esquema: tipo, papel, márgenes y columnas.
+    const order = ['<w:type', '<w:pgSz', '<w:pgMar', '<w:cols'].map(tag => section.indexOf(tag)).filter(index => index >= 0);
+    assert.deepEqual(order, [...order].sort((a, b) => a - b), section);
+  });
+  // Lo que va detrás del bloque sigue en la misma página.
+  assert.match(sections[2], /^<w:sectPr><w:type w:val="continuous" \/>/);
+  assert.match(sections[1], /<w:cols w:num="4" w:space="150" \/>/);
+});
+
+test('un DOCX sin columnas no cambia de sección', () => {
+  const source = '<w:body><w:p /><w:sectPr /></w:body>';
+  assert.equal(applyDocxColumnSections(source), source);
+});
+
+test('el ODT declara una vez el estilo de cada sección en columnas', () => {
+  const content = '<office:document-content><office:automatic-styles><style:style style:name="P1" /></office:automatic-styles>'
+    + '<office:body><office:text>'
+    + '<text:section text:style-name="EdiMarkdownColumns_4_0.265cm" text:name="EdiMarkdownColumns1"><text:p /></text:section>'
+    + '<text:section text:style-name="EdiMarkdownColumns_4_0.265cm" text:name="EdiMarkdownColumns2"><text:p /></text:section>'
+    + '<text:section text:style-name="EdiMarkdownColumns_2_1cm_rule" text:name="EdiMarkdownColumns3"><text:p /></text:section>'
+    + '</office:text></office:body></office:document-content>';
+  const result = applyOdtColumnSections(content);
+  assert.equal(result.match(/style:name="EdiMarkdownColumns_4_0.265cm"/g).length, 1);
+  assert.match(result, /style:name="EdiMarkdownColumns_4_0.265cm" style:family="section">[\s\S]*?<style:columns fo:column-count="4" fo:column-gap="0.265cm"><\/style:columns>/);
+  assert.match(result, /style:name="EdiMarkdownColumns_2_1cm_rule"[\s\S]*?<style:columns fo:column-count="2" fo:column-gap="1cm"><style:column-sep /);
+  // Las columnas se equilibran al final, como en la hoja.
+  assert.match(result, /text:dont-balance-text-columns="false"/);
+  // Los estilos de Pandoc siguen ahí, y una segunda pasada no duplica nada.
+  assert.match(result, /<style:style style:name="P1" \/>/);
+  assert.equal(applyOdtColumnSections(result), result);
+});
+

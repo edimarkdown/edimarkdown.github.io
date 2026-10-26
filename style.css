@@ -1168,6 +1168,43 @@ body.desktop-mode .markdown-textarea {
 #html-output [data-page-start] {
     margin-top: var(--page-jump, 0px) !important;
 }
+/*
+  Una fila de tabla no tiene margen: el salto va dentro de cada celda, delante
+  de lo que lleva, y la fila crece por arriba.
+*/
+#html-output tr[data-page-start] > :is(td, th)::before {
+    content: '';
+    display: block;
+    height: var(--page-jump, 0px);
+    /*
+      Un clic en el hueco va a la celda: sobre el salto, Firefox llevaba el
+      cursor al principio del documento.
+    */
+    pointer-events: none;
+}
+/* La cabecera repetida de una tabla partida, en la capa de las hojas. */
+.repeated-table-header {
+    position: absolute;
+}
+.repeated-table-header table {
+    width: 100%;
+    margin: 0;
+    table-layout: fixed;
+}
+/*
+  El cierre de cada página dentro de un bloque en columnas: atraviesa todas las
+  columnas, así que lo que viene detrás empieza un juego nuevo, y mide el hueco
+  hasta la hoja siguiente. Es un pseudoelemento para que la hoja no gane nada
+  que editar ni que pase al Markdown.
+*/
+#html-output [data-column-end]::after {
+    content: '';
+    display: block;
+    column-span: all;
+    height: var(--column-jump, 0px);
+    /* Como el salto de una fila de tabla: un clic en el hueco no se lo queda. */
+    pointer-events: none;
+}
 @media print {
     .page-sheets {
         display: none !important;
@@ -1195,6 +1232,34 @@ body.desktop-mode .markdown-textarea {
     */
     #html-output [data-page-split] {
         break-inside: auto;
+    }
+    /*
+      Una tabla partida se corta entre filas, nunca dentro de una; el resto lo
+      hace el papel, que repite la cabecera en cada página igual que la
+      pantalla. La cabecera se queda entera: si se pudiera partir, Chromium
+      deja de repetirla.
+    */
+    #html-output table[data-page-split] > :not(thead) {
+        break-inside: auto;
+    }
+    #html-output table[data-page-split] tr {
+        break-inside: avoid;
+    }
+    #html-output tr[data-page-start] > :is(td, th)::before {
+        display: none;
+    }
+    /*
+      Y lo que va en columnas: el papel lo reparte en las páginas que haga
+      falta, y una lista sigue en la columna de al lado. Mantenerlo entero lo
+      bajaba de hoja dejando la anterior en blanco.
+    */
+    #html-output [data-page-flow] {
+        break-inside: auto;
+    }
+    /* Y donde la pantalla cierra una página de columnas, el papel también. */
+    #html-output [data-column-end]::after {
+        height: 0;
+        break-after: page;
     }
 }
 

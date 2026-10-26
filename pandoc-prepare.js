@@ -3,12 +3,15 @@ import { createZip } from './zip-writer.js';
 import { extractOdtTableHeaders, restoreTableHeaders } from './odt-tables.js';
 import { normalizeFormulaHrefs } from './odt-formulas.js';
 import {
+  TWIPS_PER_CM,
+  applyDocxColumnSections,
   applyDocxFigureAlignment,
   applyDocxHyphenation,
   applyDocxMargins,
   applyDocxPageSize,
   applyDocxStyles,
   applyDocxTheme,
+  applyOdtColumnSections,
   applyOdtFigureAlignment,
   applyOdtMargins,
   applyOdtPageSize,
@@ -56,11 +59,137 @@ export const MARKDOWN_WRITER = [
   '-smart',
 ].join('');
 
-/* Apply the document font only to parsed formula nodes. The JSON pass keeps
-   code, escaped dollars, metadata and explicit mathematical alphabets intact.
-   This WASM build has no Lua engine, so filters cannot do this in one pass. */
-export async function pandocWithMathFont(convert, args, markdown, font) {
-  if (font !== 'sans') return convert(args, markdown);
+/*
+  Columnas del DOCX y del ODT. En la hoja, un bloque `<div style="column-count:
+  4">` reparte su contenido en columnas, pero los escritores de Pandoc no leen
+  el estilo de un `div` y lo sacaban todo en una. Los dos formatos sí tienen
+  columnas, solo que en otra pieza: Word las pone en la sección, así que el
+  bloque se rodea de dos cortes de sección continuos, y LibreOffice en una
+  sección propia (`text:section`). Se leen las mismas propiedades que entiende
+  el navegador: `column-count`, `column-width`, el atajo `columns`, la
+  separación (`column-gap`) y la línea entre columnas (`column-rule`).
+*/
+const CM_PER_UNIT = {
+  px: 2.54 / 96, pt: 2.54 / 72, pc: 2.54 / 6, in: 2.54, cm: 1, mm: 0.1, q: 0.025,
+  // Un `em` del navegador, con la letra de 16 px que trae por omisión.
+  em: 16 * 2.54 / 96, rem: 16 * 2.54 / 96,
+};
+
+function lengthInCm(value) {
+  const match = String(value || '').trim().match(/^(\d*\.?\d+)([a-z]*)$/i);
+  if (!match) return null;
+  const unit = match[2].toLowerCase();
+  if (!unit) return Number(match[1]) === 0 ? 0 : null;
+  return unit in CM_PER_UNIT ? Number(match[1]) * CM_PER_UNIT[unit] : null;
+}
+
+/*
+  Lo mismo que hace el navegador con un ancho de columna: cuantas quepan en la
+  línea, sin pasar del número pedido si también lo hay. El ancho del texto
+  solo hace falta en ese caso; por omisión, el de un A4 con márgenes de 2,5 cm.
+*/
+export function readColumnLayout(style, textWidthCm = 16) {
+  const declarations = {};
+  String(style || '').split(';').forEach((declaration) => {
+    const colon = declaration.indexOf(':');
+    if (colon > 0) {
+      declarations[declaration.slice(0, colon).trim().toLowerCase()] = declaration.slice(colon + 1).trim().toLowerCase();
+    }
+  });
+  let count = 0;
+  let widthCm = 0;
+  (declarations.columns || '').split(/\s+/).filter(Boolean).forEach((part) => {
+    if (/^\d+$/.test(part)) count = Number(part);
+    else if (lengthInCm(part)) widthCm = lengthInCm(part);
+  });
+  if (/^\d+$/.test(declarations['column-count'] || '')) count = Number(declarations['column-count']);
+  if (lengthInCm(declarations['column-width'])) widthCm = lengthInCm(declarations['column-width']);
+  const gap = lengthInCm(declarations['column-gap']);
+  const gapCm = gap === null ? CM_PER_UNIT.em : gap;
+  if (widthCm) {
+    const fit = Math.max(1, Math.floor((textWidthCm + gapCm) / (widthCm + gapCm)));
+    count = count ? Math.min(count, fit) : fit;
+  }
+  if (count < 2) return null;
+  const rule = [declarations['column-rule'], declarations['column-rule-style']]
+    .filter(Boolean)
+    .some(value => !/\b(none|hidden)\b/.test(value));
+  return { count, gapCm: Math.round(gapCm * 1000) / 1000, rule };
+}
+
+/*
+  El nombre del estilo de la sección del ODT lleva sus medidas, para que
+  `applyOdtColumnSections` lo pueda declarar luego sin más datos.
+*/
+export function odtColumnStyleName({ count, gapCm, rule }) {
+  return `EdiMarkdownColumns_${count}_${gapCm}cm${rule ? '_rule' : ''}`;
+}
+
+/*
+  En Word, las propiedades de una sección van en el último párrafo de esa
+  sección. Por eso el bloque necesita dos: uno antes, que cierra lo anterior
+  en una columna, y otro al final, que cierra las columnas. Son párrafos
+  vacíos, de modo que se les quita la altura casi entera.
+*/
+function docxSectionBreak(layout) {
+  const cols = layout
+    ? `<w:cols w:num="${layout.count}" w:space="${Math.round(layout.gapCm * TWIPS_PER_CM)}"${layout.rule ? ' w:sep="1"' : ''} />`
+    : '';
+  return '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact" />'
+    + `<w:sectPr><w:type w:val="continuous" />${cols}</w:sectPr></w:pPr></w:p>`;
+}
+
+/*
+  Solo los bloques que están al nivel del cuerpo: ni Word ni LibreOffice
+  admiten un cambio de sección dentro de una lista o de una cita. Un bloque en
+  columnas dentro de otro tampoco: se queda en las columnas del de fuera.
+*/
+export function splitColumnSections(ast, kind, { toc = false, textWidthCm } = {}) {
+  let sections = 0;
+  // Con índice, lo primero del documento es el índice: tiene que quedar fuera.
+  let afterBreak = !toc;
+  const raw = text => ({ t: 'RawBlock', c: [kind === 'docx' ? 'openxml' : 'opendocument', text] });
+  const walk = blocks => blocks.flatMap((block) => {
+    if (block.t !== 'Div') {
+      afterBreak = false;
+      return [block];
+    }
+    const style = (block.c[0][2] || []).find(([key]) => key === 'style');
+    const layout = style ? readColumnLayout(style[1], textWidthCm) : null;
+    if (!layout) {
+      block.c[1] = walk(block.c[1]);
+      return [block];
+    }
+    sections += 1;
+    const opening = kind === 'docx'
+      ? (afterBreak ? [] : [raw(docxSectionBreak(null))])
+      : [raw(`<text:section text:style-name="${odtColumnStyleName(layout)}" text:name="EdiMarkdownColumns${sections}">`)];
+    const closing = raw(kind === 'docx' ? docxSectionBreak(layout) : '</text:section>');
+    afterBreak = true;
+    return [...opening, block, closing];
+  });
+  ast.blocks = walk(ast.blocks);
+  return sections;
+}
+
+export function hasColumnBlocks(markdown) {
+  return /<div\b[^>]*\bstyle\s*=\s*["'][^"']*\bcolumn(s|-count|-width)\s*:/i.test(markdown || '');
+}
+
+/*
+  Las pasadas que necesitan el árbol del documento. Esta versión WASM de
+  Pandoc no trae Lua, así que no hay filtros: se pide el JSON, se cambia aquí
+  y se convierte desde él. Sin nada que cambiar, la conversión es directa.
+
+  - La letra sin serifa se aplica solo a las fórmulas ya analizadas, de modo
+    que el código, los dólares escapados, los metadatos y los alfabetos
+    matemáticos explícitos quedan intactos.
+  - Las columnas, en DOCX y ODT (`columns` lleva el formato y sus datos).
+*/
+export async function convertWithAstPasses(convert, args, markdown, { mathFont = '', columns = null } = {}) {
+  const sansMath = mathFont === 'sans';
+  const withColumns = Boolean(columns) && hasColumnBlocks(markdown);
+  if (!sansMath && !withColumns) return convert(args, markdown);
   const reader = args.match(/(?:^|\s)-f\s+(\S+)/);
   if (!reader) throw new Error('pandoc_missing_reader');
   const bytes = await convert(`-f ${reader[1]} -t json`, markdown);
@@ -74,7 +203,8 @@ export async function pandocWithMathFont(convert, args, markdown, font) {
     }
     Object.values(node).forEach(visit);
   }
-  visit(ast);
+  if (sansMath) visit(ast);
+  if (withColumns) splitColumnSections(ast, columns.kind, columns);
   return convert(args.replace(/(^|\s)-f\s+\S+/, '$1-f json'), JSON.stringify(ast));
 }
 
@@ -1335,15 +1465,15 @@ export async function applyOfficeFormat(archiveBytes, styles, kind) {
         const formatted = applyDocxStyles(xml, styles);
         return hasFigures ? applyDocxFigureAlignment(formatted) : formatted;
       });
-      // El tamaño va antes que los márgenes: los dos escriben en la misma
-      // sección y Word exige `w:pgSz` delante de `w:pgMar`.
+      // Papel y márgenes van a cada sección, también a las de las columnas.
       rewrite('word/document.xml', xml => applyDocxMargins(
-        applyDocxPageSize(xml, styles.paperCm),
+        applyDocxPageSize(applyDocxColumnSections(xml), styles.paperCm),
         styles.marginsCm,
       ));
       rewrite('word/settings.xml', xml => applyDocxHyphenation(xml, styles.hyphenate));
       rewrite('word/theme/theme1.xml', xml => applyDocxTheme(xml, styles.fontName));
     } else {
+      rewrite('content.xml', applyOdtColumnSections);
       rewrite('styles.xml', xml => {
         const formatted = applyOdtMargins(
           applyOdtPageSize(applyOdtStyles(xml, styles), styles.paperCm),

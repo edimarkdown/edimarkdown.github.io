@@ -1,5 +1,5 @@
 /* Única copia de la versión en la aplicación; package.json es la otra fuente. */
-const APP_VERSION = '3.2.5';
+const APP_VERSION = '3.3.0';
 const DESKTOP_RELEASE_BANNER_PREFIX = 'edimarkweb-hide-desktop-release-';
 const DESKTOP_RELEASE_BANNER_KEY = `${DESKTOP_RELEASE_BANNER_PREFIX}${APP_VERSION}`;
 const UPDATE_AUTO_CHECK_KEY = 'edimarkweb-update-autocheck';
@@ -7772,7 +7772,7 @@ async function importFileWithPandoc(file, { index = 1, total = 1 } = {}) {
     }
     if (format === 'pdf') {
         try {
-            const { importPdf } = await import('./pdf-import.js?v=3.2.5');
+            const { importPdf } = await import('./pdf-import.js?v=3.3.0');
             const name = getSafeDocumentName(file.name);
             // Crear el documento ocurre dentro del diálogo, que se queda a la
             // vista avisando: con un informe entero no es cosa de un instante.
@@ -10923,6 +10923,31 @@ window.onload = async () => {
                 return `\n\n![${caption}](${src}${titlePart})\n\n`;
             },
         });
+        /*
+          Un `div` escrito a mano para maquetar en columnas vuelve tal cual, con
+          su contenido en Markdown dentro. Turndown tira los `div` por no tener
+          forma en Markdown, y bastaba escribir una letra en la hoja para que
+          una lista a cuatro columnas se quedara en una. Solo el de columnas:
+          los `div` que pone la propia aplicación no son del documento. Y sin
+          lo que añade el reparto en páginas, que es de la pantalla.
+        */
+        turndownService.addRule('edimarkColumns', {
+            filter: node => node.nodeName === 'DIV'
+                && /(^|;)\s*column(s|-count|-width)\s*:/i.test(node.getAttribute('style') || ''),
+            replacement: (content, node) => {
+                const atributos = Array.from(node.attributes)
+                    .filter(({ name }) => !/^data-(page|column)-/.test(name))
+                    .map(({ name, value }) => {
+                        const limpio = name === 'style'
+                            ? value.split(';').map(d => d.trim())
+                                .filter(d => d && !/^--(page|column)-jump\s*:/.test(d)).join('; ') + ';'
+                            : value;
+                        return `${name}="${limpio.replace(/"/g, '&quot;')}"`;
+                    });
+                const apertura = ['div', ...atributos].join(' ');
+                return `\n\n<${apertura}>\n\n${content.trim()}\n\n</div>\n\n`;
+            },
+        });
         turndownService.addRule('edimarkFootnoteReference', {
             filter: node => node.nodeName === 'SUP' && node.hasAttribute('data-edimark-footnote-ref'),
             replacement: (content, node) => `[^${node.getAttribute('data-edimark-footnote-ref')}]`,
@@ -11188,10 +11213,44 @@ window.onload = async () => {
     }
 
     prefersDark.addEventListener('change', (e) => {
-      if (currentThemePreference() === 'system') {
+      if (currentThemePreference() === 'system' && !imprimiendoEnClaro) {
         applyTheme(e.matches ? 'dark' : 'light');
       }
     });
+
+    /*
+      El papel, siempre en claro. Con el tema oscuro, el PDF salía con el fondo
+      de la ventana en negro, y lo que lleva color propio en oscuro —títulos,
+      código, tablas, enlaces— en tonos claros que sobre papel blanco no se
+      leen. Mientras se imprime se quita el tema oscuro entero, en vez de
+      deshacerlo regla a regla, y al acabar vuelve el que toque.
+
+      `beforeprint` y `afterprint` cubren también el Ctrl+P del navegador. La
+      impresión de la aplicación quita el tema ella misma, por si el motor no
+      avisa antes de componer el papel, y si tampoco avisa al terminar, el
+      tema vuelve con lo primero que se toque al cerrar el cuadro.
+    */
+    let imprimiendoEnClaro = false;
+    function imprimirEnClaro() {
+      const raiz = document.documentElement;
+      if (imprimiendoEnClaro || !raiz.classList.contains('dark')) return;
+      imprimiendoEnClaro = true;
+      raiz.classList.remove('dark');
+      raiz.style.colorScheme = 'light';
+      ['pointerdown', 'keydown'].forEach(evento => window.addEventListener(evento, restaurarTemaTrasImprimir, { capture: true, once: true }));
+    }
+    function restaurarTemaTrasImprimir() {
+      if (!imprimiendoEnClaro) return;
+      imprimiendoEnClaro = false;
+      ['pointerdown', 'keydown'].forEach(evento => window.removeEventListener(evento, restaurarTemaTrasImprimir, { capture: true }));
+      const preferencia = currentThemePreference();
+      // Una consulta nueva: Firefox deja la de siempre con el valor que tenía
+      // durante la impresión.
+      const oscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(preferencia === 'system' ? (oscuro ? 'dark' : 'light') : preferencia);
+    }
+    window.addEventListener('beforeprint', imprimirEnClaro);
+    window.addEventListener('afterprint', restaurarTemaTrasImprimir);
 
     if (window.PandocExporter && typeof window.PandocExporter.warmUpExporter === 'function') {
       window.setTimeout(() => {
@@ -11841,6 +11900,7 @@ window.onload = async () => {
             preview.scrollTop = 0;
             preview.scrollLeft = 0;
         }
+        imprimirEnClaro();
         // La espera deja que se cierren los menús antes de congelar la página.
         window.setTimeout(async () => {
             const platform = window.EdiMarkPlatform;
@@ -13693,6 +13753,10 @@ window.onload = async () => {
         sheet.querySelectorAll('[data-page-split]').forEach((bloque) => {
             bloque.removeAttribute('data-page-split');
         });
+        sheet.querySelectorAll('[data-column-end]').forEach((pieza) => {
+            pieza.removeAttribute('data-column-end');
+            pieza.style.removeProperty('--column-jump');
+        });
     }
 
     /*
@@ -13703,15 +13767,21 @@ window.onload = async () => {
       Sus hijos, en cambio, sí son bloques enteros que se pueden empujar.
 
       Un `pre` no está: dentro no hay elementos que empujar, solo líneas de
-      texto. Una tabla tampoco, que partirla pide repetir la cabecera y eso es
-      otra cosa. Las dos siguen pasando enteras, como en un procesador de
-      textos.
+      texto, y sigue pasando entero. Una tabla se parte aparte, por filas
+      (`filasDeTabla`).
 
       El `div` está por la bibliografía, que llega como sección, envoltorio y
       lista de referencias, cada una dentro de la anterior. Pero un `div` puede
       ser una rejilla o una fila flexible, con los hijos uno al lado del otro, y
       ahí empujar uno hacia abajo no parte nada: descoloca la fila. Por eso solo
       se abre un contenedor que se maqueta en bloque.
+
+      Y que no va en columnas (`column-count`, `column-width`), aunque se
+      maquete en bloque: una lista de comprobación a cuatro columnas medía más
+      que la página, se abría, y los saltos caían en puntos sueltos de una
+      columna cualquiera. En pantalla las listas quedaban rotas y desplazadas,
+      y en el papel cada salto era una página nueva con media hoja en blanco.
+      Las columnas se reparten solas entre las páginas al imprimir.
     */
     const CONTENEDORES_PARTIBLES = new Set(['UL', 'OL', 'BLOCKQUOTE', 'SECTION', 'DIV']);
     const MAQUETACION_EN_BLOQUE = new Set(['block', 'list-item', 'flow-root']);
@@ -13719,13 +13789,79 @@ window.onload = async () => {
     // el tope evita recorrer un documento entero elemento por elemento.
     const PROFUNDIDAD_MAXIMA = 3;
 
+    const vaEnColumnas = estilo => estilo.columnCount !== 'auto' || estilo.columnWidth !== 'auto';
+
+    /*
+      Al imprimir, todo bloque se mantiene entero (`break-inside: avoid`), pero
+      uno en columnas tiene que poder seguir en la página siguiente: entero, el
+      papel lo bajaba a otra hoja y dejaba la primera casi en blanco. Se marca
+      haya páginas en la pantalla o no, porque se imprime igual.
+    */
+    function marcarColumnas(sheet) {
+        sheet.querySelectorAll('div, section, ul, ol, blockquote').forEach((bloque) => {
+            bloque.toggleAttribute('data-page-flow', vaEnColumnas(getComputedStyle(bloque)));
+        });
+    }
+
+    /*
+      Las piezas de un bloque en columnas, en orden: lo que el navegador
+      coloca entero en una columna. Una lista o una cita no lo son, que se
+      reparten entre columnas; sus puntos y párrafos, sí.
+    */
+    function piezasDeColumnas(contenedor) {
+        return Array.from(contenedor.children).flatMap((hijo) => {
+            const estilo = getComputedStyle(hijo);
+            if (CONTENEDORES_PARTIBLES.has(hijo.tagName)
+                && hijo.children.length
+                && MAQUETACION_EN_BLOQUE.has(estilo.display)
+                && !vaEnColumnas(estilo)) {
+                return piezasDeColumnas(hijo);
+            }
+            return estilo.display === 'none' ? [] : [hijo];
+        });
+    }
+
+    // El corte se dibuja con `::after`, y estos no lo admiten o lo convierten
+    // en otra cosa (una celda, en una tabla).
+    const SIN_CORTE_DE_COLUMNAS = new Set(['IMG', 'HR', 'BR', 'INPUT', 'VIDEO', 'AUDIO', 'IFRAME', 'TABLE', 'svg']);
+
+    /*
+      Una tabla más alta que la página se parte por filas, como en el papel y
+      en cualquier procesador de textos: entera, el hueco entre hojas la
+      atravesaba y las filas del corte quedaban a caballo entre dos páginas.
+      Una fila no admite margen, así que el salto no puede ir por ahí: va
+      dentro de sus celdas, en un `::before` que solo dibuja el CSS. Y la
+      cabecera se repite arriba de cada página, como hace el navegador al
+      imprimir; esa copia se dibuja en la capa de las hojas, fuera del texto,
+      de modo que no se puede editar ni pasa al Markdown.
+    */
+    const filasDeTabla = tabla => Array.from(tabla.rows);
+    const esFila = bloque => bloque.tagName === 'TR';
+    // Una fila no baja con el salto: lo que baja es lo que hay dentro de sus
+    // celdas, que empieza donde acaba el `::before`.
+    const salidaDe = bloque => (esFila(bloque)
+        ? Number.parseFloat(bloque.style.getPropertyValue('--page-jump')) || 0
+        : 0);
+    const cabeceraDeFila = fila => (fila.parentElement && fila.parentElement.tagName !== 'THEAD'
+        ? fila.closest('table').tHead
+        : null);
+
     function bloquesPaginables(elemento, altoUtil, profundidad = 0) {
         return Array.from(elemento.children).flatMap((hijo) => {
+            if (hijo.tagName === 'TABLE'
+                && hijo.rows.length > 1
+                && hijo.getBoundingClientRect().height > altoUtil) {
+                hijo.setAttribute('data-page-split', '');
+                return filasDeTabla(hijo);
+            }
             if (hijo.getBoundingClientRect().height <= altoUtil
                 || profundidad >= PROFUNDIDAD_MAXIMA
                 || !CONTENEDORES_PARTIBLES.has(hijo.tagName)
-                || !hijo.children.length
-                || !MAQUETACION_EN_BLOQUE.has(getComputedStyle(hijo).display)) {
+                || !hijo.children.length) {
+                return [hijo];
+            }
+            const estilo = getComputedStyle(hijo);
+            if (!MAQUETACION_EN_BLOQUE.has(estilo.display) || vaEnColumnas(estilo)) {
                 return [hijo];
             }
             hijo.setAttribute('data-page-split', '');
@@ -13746,11 +13882,55 @@ window.onload = async () => {
       pasar y lo atraviesa el hueco, que es lo que hace también un procesador de
       textos con una tabla enorme.
     */
+    /*
+      La cabecera de cada tabla partida, otra vez arriba de cada página en que
+      sigue. Es una copia en la capa de las hojas, en el hueco que deja el
+      salto de la fila, con las medidas de la original: el ancho de cada
+      columna, la letra y la alineación.
+    */
+    function cabecerasRepetidas(sheet, origen) {
+        const izquierdaDeLaHoja = sheet.getBoundingClientRect().left - sheet.offsetLeft;
+        return Array.from(sheet.querySelectorAll('table[data-page-split] tr[data-page-start]')).flatMap((fila) => {
+            const cabecera = cabeceraDeFila(fila);
+            if (!cabecera) return [];
+            const caja = cabecera.getBoundingClientRect();
+            // La letra de la hoja: la de la tabla ya lleva su reducción, y
+            // copiarla la aplicaría dos veces.
+            const estiloHoja = getComputedStyle(sheet);
+            const copia = document.createElement('div');
+            copia.className = 'repeated-table-header prose max-w-none';
+            copia.style.top = `${fila.getBoundingClientRect().top - origen + salidaDe(fila) - caja.height}px`;
+            copia.style.left = `${caja.left - izquierdaDeLaHoja}px`;
+            copia.style.width = `${caja.width}px`;
+            ['fontFamily', 'fontSize', 'lineHeight', 'color'].forEach((propiedad) => {
+                copia.style[propiedad] = estiloHoja[propiedad];
+            });
+            const tabla = document.createElement('table');
+            const columnas = document.createElement('colgroup');
+            const celdas = Array.from(cabecera.rows[cabecera.rows.length - 1].cells);
+            celdas.forEach((celda) => {
+                const columna = document.createElement('col');
+                columna.style.width = `${celda.getBoundingClientRect().width}px`;
+                columnas.appendChild(columna);
+            });
+            const duplicada = cabecera.cloneNode(true);
+            duplicada.querySelectorAll('[id]').forEach(elemento => elemento.removeAttribute('id'));
+            Array.from(cabecera.querySelectorAll('th, td')).forEach((celda, indice) => {
+                const destino = duplicada.querySelectorAll('th, td')[indice];
+                if (destino) destino.style.textAlign = getComputedStyle(celda).textAlign;
+            });
+            tabla.append(columnas, duplicada);
+            copia.appendChild(tabla);
+            return [copia];
+        });
+    }
+
     function refreshPageBreaks() {
         const desk = document.getElementById('preview-desk');
         const sheet = document.getElementById('html-output');
         const layer = document.getElementById('page-sheets');
         if (!desk || !sheet || !layer) return;
+        marcarColumnas(sheet);
 
         const api = documentFormatApi();
         const format = effectiveDocumentFormat();
@@ -13799,6 +13979,10 @@ window.onload = async () => {
         sheet.querySelectorAll('[data-page-split]').forEach((bloque) => {
             bloque.removeAttribute('data-page-split');
         });
+        sheet.querySelectorAll('[data-column-end]').forEach((pieza) => {
+            pieza.removeAttribute('data-column-end');
+            pieza.style.removeProperty('--column-jump');
+        });
         const bloques = bloquesPaginables(sheet, altoUtil);
 
         /*
@@ -13828,12 +14012,181 @@ window.onload = async () => {
           coordenadas de documento seguido: por eso al abrir una página nueva
           pasa a valer la posición natural del bloque que la estrena.
         */
+        // Con `getBoundingClientRect` y no `offsetTop`: este redondea al píxel,
+        // y medio píxel por página se acumula hasta descuadrar la última.
+        const origen = sheet.getBoundingClientRect().top - sheet.offsetTop;
         const medidas = bloques.map(bloque => ({
             bloque,
             alto: bloque.getBoundingClientRect().height,
-            desde: bloque.offsetTop,
+            // La fila de una tabla mide su `offsetTop` desde la tabla.
+            desde: esFila(bloque) ? bloque.getBoundingClientRect().top - origen : bloque.offsetTop,
         }));
 
+        /*
+          Y el ajuste fino, midiendo lo que ha quedado. Entre el reparto y la
+          pantalla se cuelan los márgenes que colapsan entre bloques y el
+          redondeo de cada salto, unos pocos píxeles que se van sumando página
+          tras página. Corregirlos con la medida en la mano sale más barato que
+          intentar predecirlos, y cada corrección se ve ya en la siguiente.
+        */
+        /*
+          Todas las posiciones de una vez y las correcciones después. Medir una
+          página, corregirla y medir la siguiente obliga al navegador a rehacer
+          la maquetación entera entre medias, y en un informe de trescientas
+          páginas eso son trescientos repasos de un documento de kilómetro y
+          medio de texto: cinco minutos con la ventana muerta. Corregir un
+          bloque baja los que vienen detrás exactamente lo mismo que se le
+          suma, así que ese desplazamiento se lleva en cuenta en vez de volver
+          a preguntarlo.
+        */
+        // Y si la tabla tiene cabecera, la copia ocupa lo alto de la página y
+        // la fila empieza debajo.
+        function afinar(inicios) {
+            const posiciones = inicios.map(({ bloque }) => bloque.getBoundingClientRect().top - origen + salidaDe(bloque));
+            let arrastre = 0;
+            inicios.forEach(({ bloque, pagina, reserva = 0 }, indice) => {
+                const objetivo = sheet.offsetTop
+                    + (pagina - 1) * (altoPagina + HUECO_ENTRE_PAGINAS)
+                    + margenSuperior
+                    + reserva;
+                const actual = posiciones[indice] + arrastre;
+                const desvio = objetivo - actual;
+                if (Math.abs(desvio) < 0.5) return;
+                const puesto = Number.parseFloat(bloque.style.getPropertyValue('--page-jump')) || 0;
+                const nuevo = Math.max(0, puesto + desvio);
+                bloque.style.setProperty('--page-jump', `${nuevo}px`);
+                // Lo que de verdad se ha movido, que con el tope en cero no siempre
+                // es el desvío pedido.
+                arrastre += nuevo - puesto;
+            });
+        }
+
+        /*
+          Un bloque en columnas más alto que la página se reparte por dentro,
+          pero no empujando sus puntos: dentro de una columna eso los descoloca.
+          Se hace como en el papel, que llena las columnas de una página y
+          sigue en la siguiente. Al final de lo que cabe en cada página se marca
+          la pieza con `data-column-end`, y su `::after` atraviesa todas las
+          columnas (`column-span: all`): cierra ahí el juego de columnas, y en
+          pantalla mide el hueco hasta la hoja siguiente mientras que en el
+          papel es un salto de página. Es solo una marca y un pseudoelemento:
+          la hoja no gana ningún elemento y sigue siendo el mismo texto
+          editable.
+
+          Las posiciones se piden de verdad, con lo anterior ya colocado: un
+          juego de columnas reparte su contenido a partes iguales y no hay
+          cuenta exacta que lo prediga. Qué pieza cierra la página se estima
+          llenando las columnas con la altura de cada pieza y se confirma
+          midiendo, pieza a pieza: buscarla a ciegas pedía nueve maquetaciones
+          por página, y en WebKit cada reparto tardaba medio segundo. Y se mide
+          siempre la pieza que abre el juego siguiente: en WebKit la posición
+          de lo que va en otra columna no es fiable, la de la primera sí.
+        */
+        const cajaDeTexto = pagina => (pagina - 1) * (altoPagina + HUECO_ENTRE_PAGINAS) + margenSuperior;
+        const enLaHoja = elemento => elemento.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+        function repartirColumnas(contenedor, pagina) {
+            const piezas = piezasDeColumnas(contenedor);
+            const corte = indice => !SIN_CORTE_DE_COLUMNAS.has(piezas[indice].tagName);
+            const estiloContenedor = getComputedStyle(contenedor);
+            const hueco = Number.parseFloat(estiloContenedor.columnGap) || 0;
+            const columnas = Number.parseInt(estiloContenedor.columnCount, 10)
+                || Math.max(1, Math.floor((contenedor.clientWidth + hueco)
+                    / ((Number.parseFloat(estiloContenedor.columnWidth) || contenedor.clientWidth) + hueco)));
+            const tamanos = piezas.map((pieza) => {
+                const estilo = getComputedStyle(pieza);
+                return {
+                    alto: pieza.offsetHeight,
+                    arriba: Number.parseFloat(estilo.marginTop) || 0,
+                    abajo: Number.parseFloat(estilo.marginBottom) || 0,
+                };
+            });
+            /*
+              Hasta qué pieza cabe, llenando columna tras columna como el
+              papel: un juego de columnas cabe a una altura cuando ese llenado
+              cabe en sus columnas. Los márgenes que colapsan o se recortan al
+              cambiar de columna lo desvían en una pieza a lo sumo, y eso lo
+              corrige la medida.
+            */
+            const estimar = (desde, disponible) => {
+                let columna = 1;
+                let ocupado = 0;
+                let anterior = 0;
+                for (let indice = desde; indice < piezas.length; indice += 1) {
+                    const { alto, arriba, abajo } = tamanos[indice];
+                    const paso = ocupado ? Math.max(anterior, arriba) + alto : alto;
+                    if (ocupado && ocupado + paso > disponible) {
+                        columna += 1;
+                        if (columna > columnas) return indice - 1;
+                        ocupado = alto;
+                    } else {
+                        ocupado += paso;
+                    }
+                    anterior = abajo;
+                }
+                return piezas.length - 1;
+            };
+            // Dónde queda la pieza que abre el juego siguiente si se cierra
+            // tras esta, sin hueco todavía.
+            const medir = (indice) => {
+                piezas[indice].setAttribute('data-column-end', '');
+                piezas[indice].style.removeProperty('--column-jump');
+                const posicion = enLaHoja(piezas[indice + 1]);
+                piezas[indice].removeAttribute('data-column-end');
+                return posicion;
+            };
+            const anteriorCorte = (indice, tope) => {
+                let candidata = indice;
+                while (candidata >= tope && !corte(candidata)) candidata -= 1;
+                return candidata;
+            };
+            const siguienteCorte = (indice) => {
+                let candidata = indice;
+                while (candidata < piezas.length - 1 && !corte(candidata)) candidata += 1;
+                return candidata;
+            };
+            let desde = 0;
+            while (desde < piezas.length - 1) {
+                const fondo = cajaDeTexto(pagina) + altoUtil;
+                const arranque = desde ? cajaDeTexto(pagina) : enLaHoja(contenedor);
+                const estimada = estimar(desde, fondo - arranque);
+                // Si según la cuenta ya cabe todo, o casi, se comprueba en la
+                // hoja: un corte de más dejaría una página casi vacía.
+                if (estimada >= piezas.length - 1 - columnas
+                    && contenedor.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top <= fondo + 1) break;
+                const cabe = (indice) => {
+                    const posicion = medir(indice);
+                    const margen = tamanos[indice + 1].arriba;
+                    return { cabe: posicion - margen <= fondo + 2, posicion };
+                };
+                let elegida = anteriorCorte(Math.min(estimada, piezas.length - 2), desde);
+                let medida = elegida >= desde ? cabe(elegida) : null;
+                /*
+                  Si la estimación se pasa, se retrocede hasta que quepa. Si se
+                  queda corta no se busca más: la página lleva un punto menos,
+                  pero el papel corta donde la pantalla, y cada medida más le
+                  cuesta a WebKit una maquetación entera del bloque.
+                */
+                while (elegida >= desde && !(medida && medida.cabe)) {
+                    elegida = anteriorCorte(elegida - 1, desde);
+                    medida = elegida >= desde ? cabe(elegida) : null;
+                }
+                // Ni la primera cabe: una pieza más alta que la página. Se
+                // corta tras ella para seguir avanzando.
+                if (elegida < desde) {
+                    elegida = siguienteCorte(desde);
+                    if (elegida >= piezas.length - 1) break;
+                    medida = cabe(elegida);
+                }
+                const pieza = piezas[elegida];
+                pieza.setAttribute('data-column-end', '');
+                pieza.style.setProperty('--column-jump', `${Math.max(0, cajaDeTexto(pagina + 1) - medida.posicion)}px`);
+                desde = elegida + 1;
+                pagina += 1;
+            }
+            return pagina;
+        }
+
+        let pendientes = [];
         let inicioPagina = margenSuperior;
         let paginas = 1;
         let vistoPrimerH1 = false;
@@ -13842,15 +14195,30 @@ window.onload = async () => {
         let indiceInicioPagina = 0;
         // Qué página estrena cada bloque, para poder afinarlo después: con un
         // bloque más alto que la hoja, el orden ya no coincide con la página.
-        const inicios = [];
-        const esEncabezado = bloque => /^H[1-6]$/.test(bloque.tagName);
+        // La cabecera de una tabla tampoco se queda sola al pie de la página.
+        const esEncabezado = bloque => /^H[1-6]$/.test(bloque.tagName)
+            || (esFila(bloque) && bloque.parentElement.tagName === 'THEAD');
         medidas.forEach(({ bloque, alto, desde }, indice) => {
             let relativo = desde - inicioPagina;
             const esH1 = bloque.tagName === 'H1';
             const saltoForzado = format.pageBreakBeforeH1 === 'yes'
                 && esH1 && vistoPrimerH1 && relativo > 0.5;
             if (esH1) vistoPrimerH1 = true;
-            if (indice > 0 && (saltoForzado || relativo + alto > altoUtil)) {
+            /*
+              Un bloque en columnas que no cabe ni en una página entera se
+              reparte por dentro (`repartirColumnas`): bajarlo a la siguiente no
+              le hace sitio y deja en blanco lo que quedaba de esta. Salvo que
+              en lo que queda no quepa ni su primera pieza.
+            */
+            let fluye = alto > altoUtil && vaEnColumnas(getComputedStyle(bloque));
+            if (fluye) {
+                const primera = piezasDeColumnas(bloque)[0];
+                const cabida = primera
+                    ? primera.offsetHeight + (Number.parseFloat(getComputedStyle(primera).marginTop) || 0)
+                    : 0;
+                fluye = relativo + cabida <= altoUtil;
+            }
+            if (indice > 0 && (saltoForzado || (relativo + alto > altoUtil && !fluye))) {
                 /*
                   Un título no se queda solo al pie de la página. Si lo que baja
                   a la hoja siguiente venía justo detrás de un encabezado, el
@@ -13870,16 +14238,18 @@ window.onload = async () => {
                     }
                 }
                 const primero = medidas[arranque];
+                const cabecera = esFila(primero.bloque) ? cabeceraDeFila(primero.bloque) : null;
+                const reserva = cabecera ? cabecera.getBoundingClientRect().height : 0;
                 primero.bloque.setAttribute('data-page-start', '');
                 primero.bloque.style.setProperty(
                     '--page-jump',
-                    `${altoUtil + salto - (primero.desde - inicioPagina)}px`,
+                    `${altoUtil + salto - (primero.desde - inicioPagina) + reserva}px`,
                 );
-                inicioPagina = primero.desde;
+                inicioPagina = primero.desde - reserva;
                 relativo = desde - inicioPagina;
                 paginas += 1;
                 indiceInicioPagina = arranque;
-                inicios.push({ bloque: primero.bloque, pagina: paginas });
+                pendientes.push({ bloque: primero.bloque, pagina: paginas, reserva });
             }
             /*
               Un bloque más alto que la caja de texto no cabe en ninguna página
@@ -13887,6 +14257,23 @@ window.onload = async () => {
               así que se cuentan las páginas que ocupa y se sigue por la
               siguiente. Es lo que hace también un procesador de textos.
             */
+            if (fluye) {
+                /*
+                  Para repartirlo hay que medirlo en su sitio: primero se afina
+                  lo que ya está colocado. Después lo que viene detrás se mide
+                  de nuevo, ya en posiciones reales, y la página en curso es
+                  aquella en la que acaba.
+                */
+                afinar(pendientes);
+                pendientes = [];
+                paginas = repartirColumnas(bloque, paginas);
+                inicioPagina = cajaDeTexto(paginas);
+                for (let resto = indice + 1; resto < medidas.length; resto += 1) {
+                    medidas[resto].desde = enLaHoja(medidas[resto].bloque);
+                }
+                indiceInicioPagina = indice;
+                return;
+            }
             const extra = Math.floor((relativo + alto) / altoUtil);
             if (extra > 0) {
                 paginas += extra;
@@ -13894,42 +14281,7 @@ window.onload = async () => {
             }
         });
 
-        /*
-          Y el ajuste fino, midiendo lo que ha quedado. Entre el reparto y la
-          pantalla se cuelan los márgenes que colapsan entre bloques y el
-          redondeo de cada salto, unos pocos píxeles que se van sumando página
-          tras página. Corregirlos con la medida en la mano sale más barato que
-          intentar predecirlos, y cada corrección se ve ya en la siguiente.
-        */
-        // Con `getBoundingClientRect` y no `offsetTop`: este redondea al píxel,
-        // y medio píxel por página se acumula hasta descuadrar la última.
-        const origen = sheet.getBoundingClientRect().top - sheet.offsetTop;
-        /*
-          Todas las posiciones de una vez y las correcciones después. Medir una
-          página, corregirla y medir la siguiente obliga al navegador a rehacer
-          la maquetación entera entre medias, y en un informe de trescientas
-          páginas eso son trescientos repasos de un documento de kilómetro y
-          medio de texto: cinco minutos con la ventana muerta. Corregir un
-          bloque baja los que vienen detrás exactamente lo mismo que se le
-          suma, así que ese desplazamiento se lleva en cuenta en vez de volver
-          a preguntarlo.
-        */
-        const posiciones = inicios.map(({ bloque }) => bloque.getBoundingClientRect().top - origen);
-        let arrastre = 0;
-        inicios.forEach(({ bloque, pagina }, indice) => {
-            const objetivo = sheet.offsetTop
-                + (pagina - 1) * (altoPagina + HUECO_ENTRE_PAGINAS)
-                + margenSuperior;
-            const actual = posiciones[indice] + arrastre;
-            const desvio = objetivo - actual;
-            if (Math.abs(desvio) < 0.5) return;
-            const puesto = Number.parseFloat(bloque.style.getPropertyValue('--page-jump')) || 0;
-            const nuevo = Math.max(0, puesto + desvio);
-            bloque.style.setProperty('--page-jump', `${nuevo}px`);
-            // Lo que de verdad se ha movido, que con el tope en cero no siempre
-            // es el desvío pedido.
-            arrastre += nuevo - puesto;
-        });
+        afinar(pendientes);
 
         // Y las hojas, una por página, debajo del texto.
         const izquierda = sheet.offsetLeft;
@@ -13966,7 +14318,7 @@ window.onload = async () => {
             hoja.appendChild(etiqueta);
             hojas.push(hoja);
         }
-        layer.replaceChildren(...hojas);
+        layer.replaceChildren(...hojas, ...cabecerasRepetidas(sheet, origen));
         updateTocPageNumbers(altoPagina + HUECO_ENTRE_PAGINAS);
     }
     window.__refreshPageBreaks = refreshPageBreaks;

@@ -16,7 +16,7 @@ import { runPandoc, readZipEntries } from './helpers/pandoc-runner.mjs';
 import bibliographyModel from '../bibliography.js';
 import {
   MARKDOWN_READER_NO_AUTO_IDS,
-  pandocWithMathFont,
+  convertWithAstPasses,
   applyOfficeFormat,
   buildExportArgs,
   ensureEpubMetadata,
@@ -1083,7 +1083,7 @@ Código: ${'`'}$sin tocar$${'`'}.
     const args = `-f ${MARKDOWN_READER_NO_AUTO_IDS} -t ${format}`
       + (['odt', 'epub3'].includes(format) ? ' --mathml' : '')
       + (format === 'html' ? ' --mathjax' : '');
-    let bytes = await pandocWithMathFont(convert, args, markdown, 'sans');
+    let bytes = await convertWithAstPasses(convert, args, markdown, { mathFont: 'sans' });
     assert.ok(bytes.length > 0);
     if (['docx', 'odt'].includes(format)) {
       bytes = await applyOfficeFormat(bytes, { fontName: 'Arial' }, format);
@@ -1151,6 +1151,51 @@ test('figuras con pie: DOCX y ODT las centran sin sangría', async () => {
         assert.match(style, /fo:text-align="center"/, `${name}: ${style}`);
         assert.match(style, /fo:text-indent="0cm"/, `${name}: ${style}`);
       }
+      assert.equal(entries.keys().next().value, 'mimetype');
+    }
+  }
+});
+
+/*
+  Un bloque `<div style="column-count:…">` sale en columnas en Word y en
+  LibreOffice: en el DOCX, entre dos cortes de sección continuos y con el
+  papel en todas las secciones; en el ODT, en una sección con su estilo.
+*/
+test('columnas: DOCX y ODT conservan el bloque en columnas', async () => {
+  const markdown = '# Lista\n\n<div style="column-count:4; column-gap:10px;">\n\n## Uno\n\n'
+    + Array.from({ length: 40 }, (_, index) => `- [ ] ${index + 1}`).join('\n')
+    + '\n\n</div>\n\nFinal en una columna.\n';
+  const convert = async (args, input) => {
+    const result = await runPandoc(args, input);
+    assert.ok(result.bytes.length > 0, result.stderr.join('\n'));
+    return result.bytes;
+  };
+  const styles = { paperCm: { width: 21, height: 29.7 }, marginsCm: { top: 1.8, right: 1.8, bottom: 1.8, left: 1.8 } };
+  const decode = bytes => new TextDecoder().decode(bytes);
+  for (const kind of ['docx', 'odt']) {
+    const args = buildExportArgs(kind, { mathml: kind === 'odt' });
+    const bytes = await applyOfficeFormat(
+      await convertWithAstPasses(convert, args, markdown, { columns: { kind } }),
+      styles,
+      kind,
+    );
+    const entries = readZipEntries(bytes);
+    if (kind === 'docx') {
+      const xml = decode(entries.get('word/document.xml'));
+      const sections = xml.match(/<w:sectPr>[\s\S]*?<\/w:sectPr>/g);
+      assert.equal(sections.length, 3, xml.slice(-2000));
+      sections.forEach(section => assert.match(section, /<w:type w:val="continuous" \/><w:pgSz w:w="11906" w:h="16838" \/><w:pgMar /));
+      assert.match(sections[1], /<w:cols w:num="4" w:space="150" \/>/);
+      // El título va delante de las columnas y el párrafo final, detrás.
+      assert.ok(xml.indexOf('Lista') < xml.indexOf(sections[0]));
+      assert.ok(xml.indexOf(sections[1]) < xml.indexOf('Final en una columna'));
+    } else {
+      const xml = decode(entries.get('content.xml'));
+      assert.match(xml, /<style:style style:name="EdiMarkdownColumns_4_0.265cm" style:family="section">/);
+      const section = xml.match(/<text:section text:style-name="EdiMarkdownColumns_4_0.265cm"[^>]*>([\s\S]*?)<\/text:section>/);
+      assert.ok(section, xml);
+      assert.match(section[1], /Uno/);
+      assert.doesNotMatch(section[1], /Final en una columna/);
       assert.equal(entries.keys().next().value, 'mimetype');
     }
   }

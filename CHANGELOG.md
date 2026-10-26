@@ -4,6 +4,15 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.3.0] - 2026-10-26
+
+- Los bloques en columnas (`<div style="column-count:4">`) salen en columnas también en DOCX y ODT, con el mismo número de columnas, la misma separación y la línea entre columnas si la hay. Antes Word y LibreOffice lo ponían todo en una sola columna.
+- En la vista previa, un bloque en columnas más largo que la página se reparte página a página, como en el papel. Antes el hueco entre hojas cortaba las líneas por la mitad, y al imprimir el bloque bajaba entero a otra hoja y dejaba la anterior casi en blanco.
+- Una tabla más larga que la página se parte por filas en la vista previa, con la cabecera repetida arriba de cada página, igual que al imprimir. Antes el hueco entre hojas atravesaba las filas del corte.
+- Escribir en la hoja visual dentro de un bloque en columnas ya no lo convierte en una sola columna.
+- Con el tema oscuro, lo impreso y el PDF salen en papel blanco y con el texto en colores legibles. Antes salían con el fondo de la ventana en negro.
+- Los márgenes del DOCX llevan todos los datos que exige el formato de Word, también cuando el documento solo fija algunos lados.
+
 ## [3.2.5] - 2026-09-27
 
 - «Acerca de» indica de cada componente de terceros quién lo hizo, enlaza a su proyecto y da su licencia. El nombre del autor y la licencia de EdiMarkdown también llevan enlace, y el manual enlaza al texto de la licencia en los cinco idiomas.

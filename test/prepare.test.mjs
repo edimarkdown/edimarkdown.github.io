@@ -34,6 +34,10 @@ import {
   collectDocxHeadings,
   collectOdtHeadings,
   fillOdtTableOfContents,
+  readColumnLayout,
+  splitColumnSections,
+  hasColumnBlocks,
+  convertWithAstPasses,
 } from '../pandoc-prepare.js';
 import { readZipEntries, mimeForPath } from '../zip-reader.js';
 import { createZip } from '../zip-writer.js';
@@ -1045,3 +1049,91 @@ test('markdownHasFigures reconoce la imagen sola en su párrafo y con texto', as
   assert.equal(markdownHasFigures('Texto ![Pie](a.png) en línea.'), false);
   assert.equal(markdownHasFigures('Texto pegado\n![Pie](a.png)'), false);
 });
+
+/*
+  Columnas del DOCX y del ODT: se leen las mismas propiedades que entiende el
+  navegador, para que el archivo tenga las columnas de la hoja.
+*/
+test('las columnas se leen como las lee el navegador', () => {
+  assert.deepEqual(readColumnLayout('column-count:4; column-gap:10px;'), { count: 4, gapCm: 0.265, rule: false });
+  assert.deepEqual(readColumnLayout('columns: 3'), { count: 3, gapCm: 0.423, rule: false });
+  assert.equal(readColumnLayout('columns: 12em 2').count, 2);
+  // Un ancho de columna da tantas como quepan en la línea.
+  assert.equal(readColumnLayout('column-width: 5cm; column-gap: 1cm', 16).count, 2);
+  assert.equal(readColumnLayout('column-width: 5cm; column-gap: 1cm', 26).count, 4);
+  assert.equal(readColumnLayout('column-count: 3; column-width: 7cm; column-gap: 0', 16).count, 2);
+  assert.equal(readColumnLayout('column-rule: 1px solid #ccc; column-count: 2').rule, true);
+  assert.equal(readColumnLayout('column-rule: none; column-count: 2').rule, false);
+  // Una sola columna, o ninguna, no es un bloque en columnas.
+  assert.equal(readColumnLayout('column-count: 1'), null);
+  assert.equal(readColumnLayout('color: red'), null);
+  assert.equal(readColumnLayout('column-count: auto'), null);
+});
+
+const columnDiv = (blocks, style = 'column-count:4; column-gap:10px;') => (
+  { t: 'Div', c: [['', [], [['style', style]]], blocks] }
+);
+const para = text => ({ t: 'Para', c: [{ t: 'Str', c: text }] });
+
+test('en el DOCX, el bloque en columnas queda entre dos cortes de sección', () => {
+  const ast = { blocks: [para('antes'), columnDiv([para('dentro')]), para('después')] };
+  assert.equal(splitColumnSections(ast, 'docx'), 1);
+  assert.deepEqual(ast.blocks.map(block => block.t), ['Para', 'RawBlock', 'Div', 'RawBlock', 'Para']);
+  const [, opening, , closing] = ast.blocks;
+  assert.equal(opening.c[0], 'openxml');
+  assert.match(opening.c[1], /<w:sectPr><w:type w:val="continuous" \/><\/w:sectPr>/);
+  assert.match(closing.c[1], /<w:cols w:num="4" w:space="150" \/>/);
+});
+
+test('en el DOCX no se abre una sección vacía delante del bloque', () => {
+  // Al principio del documento, o justo detrás de otro bloque en columnas.
+  const ast = { blocks: [columnDiv([para('a')]), columnDiv([para('b')], 'columns: 2')] };
+  splitColumnSections(ast, 'docx');
+  assert.deepEqual(ast.blocks.map(block => block.t), ['Div', 'RawBlock', 'Div', 'RawBlock']);
+  // Con índice, el índice va delante y tiene que quedar fuera de las columnas.
+  const withToc = { blocks: [columnDiv([para('a')])] };
+  splitColumnSections(withToc, 'docx', { toc: true });
+  assert.deepEqual(withToc.blocks.map(block => block.t), ['RawBlock', 'Div', 'RawBlock']);
+});
+
+test('en el ODT, el bloque en columnas va en su propia sección', () => {
+  const ast = { blocks: [columnDiv([para('a')]), columnDiv([para('b')], 'columns: 2; column-rule: 1px solid')] };
+  assert.equal(splitColumnSections(ast, 'odt'), 2);
+  const raws = ast.blocks.filter(block => block.t === 'RawBlock').map(block => block.c);
+  assert.deepEqual(raws, [
+    ['opendocument', '<text:section text:style-name="EdiMarkdownColumns_4_0.265cm" text:name="EdiMarkdownColumns1">'],
+    ['opendocument', '</text:section>'],
+    ['opendocument', '<text:section text:style-name="EdiMarkdownColumns_2_0.423cm_rule" text:name="EdiMarkdownColumns2">'],
+    ['opendocument', '</text:section>'],
+  ]);
+});
+
+test('las columnas solo cambian de sección al nivel del cuerpo', () => {
+  const nested = columnDiv([para('dentro')], 'columns: 2');
+  const list = { t: 'BulletList', c: [[columnDiv([para('en la lista')])]] };
+  const plain = { t: 'Div', c: [['', ['nota'], []], [columnDiv([para('en un div')])]] };
+  const ast = { blocks: [columnDiv([nested]), list, plain] };
+  assert.equal(splitColumnSections(ast, 'docx'), 2);
+  // El de dentro de otro bloque en columnas y el de la lista se quedan como están.
+  assert.equal(ast.blocks[0].c[1][0], nested);
+  assert.equal(ast.blocks[2], list);
+  // Un div sin columnas no es un cambio de sección: el de dentro sí cuenta.
+  assert.deepEqual(ast.blocks[3].c[1].map(block => block.t), ['RawBlock', 'Div', 'RawBlock']);
+});
+
+test('sin bloques en columnas la conversión es directa', async () => {
+  assert.equal(hasColumnBlocks('<div style="column-count:4">'), true);
+  assert.equal(hasColumnBlocks("<div class='x' style='columns: 2'>"), true);
+  assert.equal(hasColumnBlocks('<div style="color: red">'), false);
+  const calls = [];
+  const convert = async (args, input) => {
+    calls.push(args);
+    return new TextEncoder().encode(args.includes('-t json') ? JSON.stringify({ blocks: [] }) : input);
+  };
+  await convertWithAstPasses(convert, '-f markdown -t docx', 'Texto', { columns: { kind: 'docx' } });
+  assert.deepEqual(calls, ['-f markdown -t docx']);
+  calls.length = 0;
+  await convertWithAstPasses(convert, '-f markdown -t docx', '<div style="columns:2">\n\nA\n\n</div>', { columns: { kind: 'docx' } });
+  assert.deepEqual(calls, ['-f markdown -t json', '-f json -t docx']);
+});
+
