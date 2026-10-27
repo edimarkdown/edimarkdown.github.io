@@ -218,15 +218,39 @@
       fill(wrapper, cached);
       if (!cached) pending.push(wrapper);
     });
-    pending.forEach((wrapper) => {
-      const code = wrapper.dataset.edimarkMermaid;
-      draw(code).then((entry) => {
-        if (wrapper.isConnected && wrapper.dataset.edimarkMermaid === code) fill(wrapper, entry);
-      }).catch(() => {
-        if (wrapper.isConnected) fill(wrapper, { offline: true });
-      });
-    });
+    pending.forEach(wrapper => (visibility ? visibility.observe(wrapper) : drawInto(wrapper)));
     return container.querySelectorAll('.edimark-mermaid').length;
+  }
+
+  function drawInto(wrapper) {
+    if (visibility) visibility.unobserve(wrapper);
+    if (!wrapper.isConnected || !wrapper.classList.contains('edimark-mermaid-pending')) return Promise.resolve();
+    const code = wrapper.dataset.edimarkMermaid;
+    return draw(code).then((entry) => {
+      if (wrapper.isConnected && wrapper.dataset.edimarkMermaid === code) fill(wrapper, entry);
+    }).catch(() => {
+      if (wrapper.isConnected) fill(wrapper, { offline: true });
+    });
+  }
+
+  /*
+    Un diagrama se dibuja cuando se acerca a la pantalla, y solo entonces se
+    descarga Mermaid. El manual, que se abre solo la primera vez, lleva uno al
+    final: sin esto, quien entraba por primera vez se bajaba 5 MB nada más
+    llegar, compitiendo con lo que la página necesita para arrancar.
+  */
+  const visibility = typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver((entries) => {
+      entries.forEach((entry) => { if (entry.isIntersecting) drawInto(entry.target); });
+    }, { rootMargin: '800px 0px' })
+    : null;
+
+  // Lo que falta por dibujar, todo, antes de imprimir o de medir la hoja.
+  async function ready() {
+    await Promise.all(Array.from(document.querySelectorAll('.edimark-mermaid.edimark-mermaid-pending'))
+      .map(wrapper => drawInto(wrapper)));
+    await renderChain;
+    await new Promise(resolve => requestAnimationFrame(() => resolve()));
   }
 
   // El diagrama vuelve a ser su bloque de código antes de salir de la hoja.
@@ -406,6 +430,6 @@
     replaceWithImages,
     draw,
     // Lo pendiente de dibujar en la hoja, antes de imprimirla.
-    ready: () => renderChain.then(() => new Promise(resolve => requestAnimationFrame(() => resolve()))),
+    ready,
   };
 })(window);

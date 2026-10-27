@@ -28,8 +28,12 @@ Markdown no cambia nunca por dibujar. Lo ya dibujado se guarda por código,
 porque la hoja se rehace entera con cada tecla. Un diagrama con errores enseña
 su código y el aviso de Mermaid, con la línea y lo que esperaba.
 
-- **Mermaid 12.2.0**, el mismo que Sirena, se descarga solo si el documento
-  tiene algún diagrama: pesa unos 5 MB. La web lo toma del CDN con huella SRI;
+- **Mermaid 12.2.0**, el mismo que Sirena, se descarga solo cuando un diagrama
+  se acerca a la pantalla, o al imprimir o exportar: pesa unos 5 MB. Cargarlo
+  en cuanto el documento tenía un diagrama hacía que el manual, que se abre
+  solo la primera vez y lleva uno al final, lo bajara nada más llegar; en las
+  pruebas de GitHub esa descarga retrasaba la página lo bastante como para
+  que la barra del móvil se moviera bajo el dedo. La web lo toma del CDN con huella SRI;
   la aplicación de escritorio lleva su copia, y `build-desktop.mjs` cambia la
   dirección en `mermaid-diagrams.js`.
 - **La configuración es la de Sirena**: rótulos como texto SVG salvo que el
