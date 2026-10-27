@@ -93,6 +93,32 @@ Greek letters ($\alpha$, $\Omega$), subscripts ($H_2O$) and set symbols ($\mathb
 
 ---
 
+## Diagrams
+
+A code block labelled `mermaid` is drawn as a diagram. This code:
+
+````markdown
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+````
+
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+
+* **To create one without knowing Mermaid**, the diagram button on the toolbar, next to the EdiCuaTeX one, opens **Sirena**, a visual diagram editor. **Insert** puts it in the document.
+* **To change it**, double-click the diagram, or use the pencil in its corner: it opens in Sirena and, when inserted, replaces the one that was there.
+* If the code has an error, you see the code with Mermaid's message, which says on which line it is.
+
+When exporting to DOCX, ODT, EPUB, HTML or TEX, each diagram comes out as a centred image, and the `.md` file keeps the code. In the web version, the first time a diagram appears a connection is needed to load Mermaid.
+
+---
+
 ## Citations and bibliography
 
 Under **Settings → General options… → Citations** you can load a **BibTeX** (`.bib`) or **CSL JSON** (`.json`) library, or try **Load sample bibliography**. The book button (`Ctrl+Alt+B`) opens a search by author, title or year, with **Add reference manually** always available.
@@ -139,7 +165,7 @@ The copy button, next to Export, sends the content to the clipboard as Markdown,
 
 It's the same app, installed on Linux, Windows and macOS. Installers are on the [downloads page](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest).
 
-Compared with the browser, it adds: double-click to open `.md` files, direct saving without going through the downloads folder, the location of each tab's file when hovering over it or in its right-click menu (clicking it opens its folder), the system's spell checker, and offline use (Pandoc and EdiCuaTeX are bundled in). On launch it checks for a new version and offers **Download and install**.
+Compared with the browser, it adds: double-click to open `.md` files, direct saving without going through the downloads folder, the location of each tab's file when hovering over it or in its right-click menu (clicking it opens its folder), the system's spell checker, and offline use (Pandoc, EdiCuaTeX, Sirena and Mermaid are bundled in). On launch it checks for a new version and offers **Download and install**.
 
 **On macOS**, if the system warns that the app "is damaged", drag EdiMarkdown to Applications and run in Terminal:
 
@@ -203,7 +229,7 @@ This is just macOS's usual warning for unsigned software; that command opens it 
 
 EdiMarkdown uses a base compatible with GitHub Flavored Markdown (GFM), extended with Pandoc features: headings, bold and italic, lists and block quotes, links and images, code, tables, tasks (`- [ ]`) and strikethrough (`~~text~~`).
 
-Extensions include LaTeX formulas, footnotes `[^note]`, bibliographic citations `[@key]`, YAML metadata, subscripts `H~2~O` and superscripts `m^2^`.
+Extensions include LaTeX formulas, footnotes `[^note]`, bibliographic citations `[@key]`, YAML metadata, subscripts `H~2~O`, superscripts `m^2^` and Mermaid diagrams.
 
 **Limits**: not every Pandoc extension is guaranteed to appear on the visual sheet. Definition lists, grid tables or `:::` blocks fall outside the common profile, though you can still write them in the Markdown editor and they will carry over on export.
 

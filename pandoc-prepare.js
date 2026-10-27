@@ -953,6 +953,45 @@ export function splitCodeSegments(markdown) {
   return segments;
 }
 
+/*
+  Los diagramas Mermaid son bloques de código cuya etiqueta es `mermaid` (o la
+  clase `{.mermaid}` que escribe Pandoc). Al exportar se cambian por la imagen
+  del diagrama: `replace` recibe el código y su orden, y devuelve el texto que
+  ocupa su lugar, o nada para dejar el bloque como estaba. Dentro de una lista,
+  la sangría se quita del código que se entrega y se conserva delante de lo que
+  lo sustituye, para que siga en su elemento.
+*/
+const MERMAID_FENCE_RE = /^(\n?)([ \t]{0,3})(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)(?:\n[ \t]{0,3}\3[^\n]*)?$/;
+
+// Solo la primera palabra, que es lo que mira marked para pintar la hoja: así
+// se convierte en imagen exactamente lo que la hoja dibuja como diagrama.
+function mermaidInfo(info) {
+  const word = String(info || '').trim().split(/\s+/)[0] || '';
+  return /^(?:mermaid|\{\.mermaid\})$/i.test(word);
+}
+
+export function mapMermaidBlocks(markdown, replace) {
+  let index = 0;
+  return splitCodeSegments(markdown).map((segment) => {
+    if (!segment.code) return segment.text;
+    const match = segment.text.match(MERMAID_FENCE_RE);
+    if (!match || !mermaidInfo(match[4])) return segment.text;
+    const indent = match[2].length;
+    const code = match[5].split('\n')
+      .map(line => line.replace(new RegExp(`^[ \\t]{0,${indent}}`), ''))
+      .join('\n');
+    const replacement = replace(code, index++);
+    if (typeof replacement !== 'string') return segment.text;
+    return match[1] + replacement.split('\n').map(line => (line ? `${match[2]}${line}` : line)).join('\n');
+  }).join('');
+}
+
+export function collectMermaidBlocks(markdown) {
+  const blocks = [];
+  mapMermaidBlocks(markdown, (code) => { blocks.push(code); });
+  return blocks;
+}
+
 /* Aplica una transformación solo al texto que no es código. */
 export function mapOutsideCode(markdown, transform) {
   return splitCodeSegments(markdown)
@@ -1399,9 +1438,10 @@ export async function fillOdtTableOfContents(archiveBytes, depth = 3) {
   Una imagen sola en su párrafo y con texto es una figura para Pandoc, y ese
   texto es su pie. Se centran las dos cosas, como en la hoja.
 */
-export const FIGURE_CSS = 'figure { text-align: center; }\nfigure img { margin-inline: auto; }\nfigcaption { text-align: center; font-style: italic; }';
+export const FIGURE_CSS = 'figure, [data-custom-style="Figure"] { text-align: center; }\nfigure img { margin-inline: auto; }\nfigcaption { text-align: center; font-style: italic; }';
 
 export function markdownHasFigures(markdown) {
+  if (/custom-style="Figure"/.test(String(markdown || ''))) return true;
   return /(?:^|\n[ \t]*\n)[ \t]*!\[[^\]\n]*\S[^\]\n]*\]\([^)\n]+\)(?:\{[^}\n]*\})?[ \t]*(?=\n[ \t]*\n|\n?$)/
     .test(String(markdown || ''));
 }
@@ -1458,7 +1498,10 @@ export async function applyOfficeFormat(archiveBytes, styles, kind) {
 
     // Las figuras se centran siempre, como en la hoja; solo si el documento tiene alguna.
     const body = decoder.decode(entries.get(kind === 'docx' ? 'word/document.xml' : 'content.xml') || new Uint8Array());
-    const hasFigures = kind === 'docx' ? /w:val="CaptionedFigure"/.test(body) : /text:style-name="FigureWithCaption"/.test(body);
+    // Los diagramas van con el estilo de la figura, sin pie, y se centran igual.
+    const hasFigures = kind === 'docx'
+      ? /w:val="(?:CaptionedFigure|Figure)"/.test(body)
+      : /text:style-name="(?:FigureWithCaption|Figure)"/.test(body);
 
     if (kind === 'docx') {
       rewrite('word/styles.xml', xml => {

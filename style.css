@@ -363,7 +363,8 @@ body.desktop-mode .markdown-textarea {
     border-bottom-color: #334155;
 }
 
-#edicuatex-frame {
+#edicuatex-frame,
+#sirena-frame {
     display: block;
     flex: 1;
     width: 100%;
@@ -1588,6 +1589,97 @@ body.desktop-mode .markdown-textarea {
 /* El gris del pie que trae la tipografía se pierde sobre la hoja oscura. */
 .dark #html-output figcaption {
     color: #94a3b8;
+}
+
+/*
+  Diagrama Mermaid: centrado y sin pasar del ancho de la hoja. Se dibuja
+  siempre en claro, como sale en el papel y en lo exportado, así que en la
+  hoja oscura va sobre su propio fondo blanco.
+*/
+#html-output .edimark-mermaid {
+    margin: 1em 0;
+    text-align: center;
+    text-indent: 0;
+}
+#html-output .edimark-mermaid svg {
+    display: inline-block;
+    max-width: 100%;
+    height: auto;
+}
+.dark #html-output .edimark-mermaid:not(.edimark-mermaid-pending):not(.edimark-mermaid-error) {
+    padding: 0.75rem;
+    border-radius: 6px;
+    background-color: #ffffff;
+}
+/*
+  La hoja de KaTeX pone `position: relative` a cada fórmula, y WebKit (Safari y
+  la aplicación de escritorio en Linux y macOS) pinta lo que la lleva dentro de
+  un rótulo HTML del diagrama fuera de su caja. La posición no cambia la medida.
+*/
+#html-output .edimark-mermaid .katex {
+    position: static;
+}
+#html-output .edimark-mermaid pre {
+    margin: 0;
+    text-align: left;
+}
+/* El lápiz que abre el diagrama en Sirena: arriba a la derecha, al pasar por
+   encima o al llegar con el teclado; en pantallas táctiles, siempre. */
+#html-output .edimark-mermaid {
+    position: relative;
+}
+#html-output .edimark-mermaid-edit {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+#html-output .edimark-mermaid:hover .edimark-mermaid-edit,
+#html-output .edimark-mermaid-edit:focus-visible {
+    opacity: 1;
+}
+#html-output .edimark-mermaid-edit:hover {
+    background: #f1f5f9;
+}
+@media (hover: none) {
+    #html-output .edimark-mermaid-edit {
+        opacity: 1;
+    }
+}
+@media print {
+    #html-output .edimark-mermaid-edit {
+        display: none;
+    }
+}
+#html-output .edimark-mermaid-message {
+    margin: 0.4em 0 0;
+    color: #b91c1c;
+    font-size: 0.85em;
+    text-align: left;
+    text-indent: 0;
+}
+.dark #html-output .edimark-mermaid-message {
+    color: #fca5a5;
+}
+#html-output .edimark-mermaid pre.edimark-mermaid-detail {
+    margin-top: 0.25em;
+    padding: 0.5em 0.75em;
+    border-left: 3px solid #b91c1c;
+    background: transparent;
+    color: inherit;
+    font-size: 0.8em;
+    white-space: pre-wrap;
 }
 
 /* Subíndices y superíndices. El interlineado a cero es lo que impide que

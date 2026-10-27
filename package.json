@@ -1,6 +1,6 @@
 {
   "name": "edimarkweb.github.io",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "> **Nota**   > Este repositorio ha sido trasladado a [edimarkweb/edimarkweb.github.io](https://github.com/edimarkweb/edimarkweb.github.io). La aplicación se publica ahora en [https://edimarkweb.github.io/](https://edimarkweb.github.io/).",
   "main": "i18n.js",
   "scripts": {
@@ -55,6 +55,8 @@
     "katex": "0.16.47",
     "lucide": "0.523.0",
     "marked": "18.0.9",
+    "mermaid": "12.2.0",
+    "sirenaapp": "2.5.0",
     "split.js": "1.6.5",
     "tailwindcss": "^3.4.19",
     "tesseract.js": "7.0.0",

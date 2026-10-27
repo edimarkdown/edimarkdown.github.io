@@ -37,7 +37,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.js" integrity="sha384-q2ksSc8z6Q4ZUnxlfZj9AXZLpSdWmD3q/YrId1twTeNHh56fNh98YbJSpppzGUvL" crossorigin="anonymous"></script>
 
-    <link rel="stylesheet" href="style.css?v=3.3.0">
+    <link rel="stylesheet" href="style.css?v=3.4.0">
 </head>
 <body class="p-4 sm:p-6 md:p-8">
 <!--
@@ -483,7 +483,7 @@
     <section id="desktop-release-banner" class="desktop-release-banner" role="status" hidden>
         <i data-lucide="monitor-down" class="desktop-release-banner-icon" aria-hidden="true"></i>
         <div class="desktop-release-banner-content">
-            <p data-i18n-key="desktop_banner_message">EdiMarkdown Desktop v3.3.0 está disponible para Linux, Windows y macOS.</p>
+            <p data-i18n-key="desktop_banner_message">EdiMarkdown Desktop v3.4.0 está disponible para Linux, Windows y macOS.</p>
             <a id="desktop-banner-download-link" href="https://github.com/edimarkweb/edimarkweb.github.io/releases/latest" target="_blank" rel="noreferrer noopener" data-i18n-key="desktop_banner_download">Ver descargas</a>
             <label class="desktop-release-banner-never">
                 <input id="desktop-banner-never-show" type="checkbox">
@@ -637,6 +637,9 @@
                 </div>
                 <button id="open-edicuatex-btn" class="toolbar-btn flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-blue-500" data-i18n-key="edicuatex_btn_title" title="Editor visual de fórmulas matemáticas (EdiCuaTeX, Ctrl+Alt+M)" aria-keyshortcuts="Control+Alt+M">
                     <i data-lucide="square-radical"></i>
+                </button>
+                <button id="open-sirena-btn" class="toolbar-btn flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-blue-500" data-i18n-key="sirena_btn_title" title="Nuevo diagrama Mermaid (Sirena)">
+                    <i data-lucide="workflow"></i>
                 </button>
             </div>
             <div class="border-l h-6 border-slate-300 dark:border-slate-600"></div>
@@ -910,6 +913,16 @@
         </div>
     </div>
 
+    <div id="sirena-modal-overlay" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-2 sm:p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="sirena-modal-title">
+        <div class="edicuatex-modal-panel bg-white rounded-lg shadow-xl dark:bg-slate-800">
+            <div class="edicuatex-modal-header">
+                <h3 id="sirena-modal-title" class="font-semibold text-slate-800 dark:text-slate-100" data-i18n-key="sirena_modal_title">Editor de diagramas Sirena</h3>
+                <button id="sirena-close-btn" type="button" class="action-btn focus-visible:ring-2 focus-visible:ring-blue-500" data-i18n-key="sirena_close_btn_title" title="Cerrar Sirena" aria-label="Cerrar Sirena"><i data-lucide="x"></i></button>
+            </div>
+            <iframe id="sirena-frame" title="Sirena" src="about:blank" allow="clipboard-write; fullscreen"></iframe>
+        </div>
+    </div>
+
     <div id="about-modal-overlay" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto dark:bg-slate-800">
             <div class="flex items-center gap-3 mb-4">
@@ -961,6 +974,8 @@
                     <li><a href="https://github.com/pypa/packaging" target="_blank" rel="noreferrer noopener">packaging</a> · Donald Stufft and individual contributors · Apache-2.0 / BSD-2-Clause</li>
                     <li><a href="https://github.com/citation-style-language/styles" target="_blank" rel="noreferrer noopener">CSL: APA, Chicago, MLA, IEEE</a> · Brenton M. Wiernik, Andrew Dunning, Sebastian Karcher, Michael Berkowitz et al. · <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noreferrer noopener">CC BY-SA 3.0</a></li>
                     <li><a href="https://edicuatex.github.io/" target="_blank" rel="noreferrer noopener">EdiCuaTeX</a> · Juan José de Haro · GNU AGPL v3</li>
+                    <li><a href="https://sirenaapp.github.io/" target="_blank" rel="noreferrer noopener">Sirena</a> · Juan José de Haro · GNU AGPL v3</li>
+                    <li><a href="https://mermaid.js.org/" target="_blank" rel="noreferrer noopener">Mermaid</a> · Knut Sveidqvist and contributors · MIT</li>
                     <li><a href="https://www.mathjax.org/" target="_blank" rel="noreferrer noopener">MathJax</a> · MathJax Consortium · Apache-2.0</li>
                     <li><a href="https://lucide.dev/" target="_blank" rel="noreferrer noopener">Lucide</a> · Lucide Contributors; Cole Bemis (Feather) · ISC</li>
                 </ul>
@@ -1724,15 +1739,16 @@
         </div>
     </div>
 
-    <script src="asset-paths.js?v=3.3.0"></script>
-    <script src="bibliography.js?v=3.3.0"></script>
-    <script src="document-format.js?v=3.3.0"></script>
-    <script src="format-profiles.js?v=3.3.0"></script>
-    <script src="platform-api.js?v=3.3.0"></script>
-    <script src="desktop-updater.js?v=3.3.0"></script>
-    <script type="module" src="pandoc-exporter.js?v=3.3.0"></script>
-    <script src="script.js?v=3.3.0" defer></script>
-    <script src="search.js?v=3.3.0" defer></script>
-    <script src="i18n.js?v=3.3.0" defer></script>
+    <script src="asset-paths.js?v=3.4.0"></script>
+    <script src="bibliography.js?v=3.4.0"></script>
+    <script src="document-format.js?v=3.4.0"></script>
+    <script src="format-profiles.js?v=3.4.0"></script>
+    <script src="platform-api.js?v=3.4.0"></script>
+    <script src="desktop-updater.js?v=3.4.0"></script>
+    <script src="mermaid-diagrams.js?v=3.4.0"></script>
+    <script type="module" src="pandoc-exporter.js?v=3.4.0"></script>
+    <script src="script.js?v=3.4.0" defer></script>
+    <script src="search.js?v=3.4.0" defer></script>
+    <script src="i18n.js?v=3.4.0" defer></script>
 </body>
 </html>

@@ -93,6 +93,32 @@ Letras gregas ($\alpha$, $\Omega$), subíndices ($H_2O$) e símbolos de conxunto
 
 ---
 
+## Diagramas
+
+Un bloque de código coa etiqueta `mermaid` debúxase como diagrama. Este código:
+
+````markdown
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+````
+
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+
+* **Para crear un sen saber Mermaid**, o botón de diagrama da barra, xunto ao de EdiCuaTeX, abre **Sirena**, un editor visual de diagramas. **Inserir** pono no documento.
+* **Para cambialo**, dobre clic sobre o diagrama, ou o lapis da súa esquina: ábrese en Sirena e, ao inserilo, substitúe o que había.
+* Se o código ten un erro, vese o código co aviso de Mermaid, que di en que liña está.
+
+Ao exportar a DOCX, ODT, EPUB, HTML ou TEX, cada diagrama sae como unha imaxe centrada, e o ficheiro `.md` conserva o código. Na versión web, a primeira vez que aparece un diagrama cómpre conexión para cargar Mermaid.
+
+---
+
 ## Citas e bibliografía
 
 En **Configuración → Opcións xerais… → Citas** podes cargar unha biblioteca **BibTeX** (`.bib`) ou **CSL JSON** (`.json`), ou probar con **Cargar bibliografía de exemplo**. O botón do libro (`Ctrl+Alt+B`) abre un buscador por autor, título ou ano, con **Engadir referencia manualmente** sempre á man.
@@ -139,7 +165,7 @@ O botón de copiar, xunto a Exportar, leva o contido ao portapapeis en Markdown,
 
 É a mesma aplicación instalada en Linux, Windows e macOS. Os instaladores están na [páxina de descargas](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest).
 
-Fronte ao navegador engade: dobre clic para abrir ficheiros `.md`, gardado directo sen pasar pola carpeta de descargas, a localización do ficheiro de cada lapela ao pasar o rato por riba ou no seu menú do botón dereito (ao premela ábrese o seu cartafol), corrector ortográfico do sistema e funcionamento sen conexión (Pandoc e EdiCuaTeX van incluídos). Ao arrincar comproba se hai unha versión nova e avisa con **Descargar e instalar**.
+Fronte ao navegador engade: dobre clic para abrir ficheiros `.md`, gardado directo sen pasar pola carpeta de descargas, a localización do ficheiro de cada lapela ao pasar o rato por riba ou no seu menú do botón dereito (ao premela ábrese o seu cartafol), corrector ortográfico do sistema e funcionamento sen conexión (Pandoc, EdiCuaTeX, Sirena e Mermaid van incluídos). Ao arrincar comproba se hai unha versión nova e avisa con **Descargar e instalar**.
 
 **En macOS**, se o sistema avisa de que a aplicación «está danada», arrastra EdiMarkdown a Aplicacións e executa no Terminal:
 
@@ -203,7 +229,7 @@ xattr -dr com.apple.quarantine /Applications/EdiMarkdown.app
 
 EdiMarkdown usa unha base compatible con GitHub Flavored Markdown (GFM), ampliada con funcións de Pandoc: cabeceiras, negra e cursiva, listas e citas en bloque, ligazóns e imaxes, código, táboas, tarefas (`- [ ]`) e riscado (`~~texto~~`).
 
-As ampliacións son as fórmulas LaTeX, as notas ao pé `[^nota]`, as citas bibliográficas `[@clave]`, os metadatos YAML, os subíndices `H~2~O` e os superíndices `m^2^`.
+As ampliacións son as fórmulas LaTeX, as notas ao pé `[^nota]`, as citas bibliográficas `[@clave]`, os metadatos YAML, os subíndices `H~2~O`, os superíndices `m^2^` e os diagramas Mermaid.
 
 **Límites**: non todas as extensións de Pandoc se ven na folla visual. As listas de definicións, as táboas de reixa ou os bloques `:::` quedan fóra do perfil común, aínda que podes escribilas igualmente no editor Markdown e chegarán á exportación.
 

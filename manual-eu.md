@@ -93,6 +93,32 @@ Greziar letrak ($\alpha$, $\Omega$), azpiindizeak ($H_2O$) eta multzo-sinboloak 
 
 ---
 
+## Diagramak
+
+`mermaid` etiketa duen kode-bloke bat diagrama gisa marrazten da. Kode hau:
+
+````markdown
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+````
+
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+
+* **Mermaid jakin gabe bat sortzeko**, barrako diagrama-botoiak, EdiCuaTeXenaren ondoan, **Sirena** irekitzen du, diagrama-editore bisual bat. **Txertatu** sakatuta dokumentuan jartzen da.
+* **Aldatzeko**, klik bikoitza diagraman, edo haren izkinako arkatza: Sirenan irekitzen da eta, txertatzean, zegoena ordezten du.
+* Kodeak errore bat badu, kodea eta Mermaiden abisua ikusten dira, zein lerrotan dagoen esaten duena.
+
+DOCX, ODT, EPUB, HTML edo TEX formatura esportatzean, diagrama bakoitza irudi zentratu gisa ateratzen da, eta `.md` fitxategiak kodea gordetzen du. Web bertsioan, diagrama bat lehen aldiz agertzen denean konexioa behar da Mermaid kargatzeko.
+
+---
+
 ## Aipuak eta bibliografia
 
 **Ezarpenak → Aukera orokorrak… → Aipuak** atalean **BibTeX** (`.bib`) edo **CSL JSON** (`.json`) liburutegi bat karga dezakezu, edo probatu **Adibidezko bibliografia kargatu**. Liburu-botoiak (`Ctrl+Alt+B`) egile, izenburu edo urteka bilatzailea irekitzen du, **Erreferentzia eskuz gehitu** beti eskura duzula.
@@ -139,7 +165,7 @@ Kopiatzeko botoiak, Esportatu-ren ondoan, edukia arbelera bidaltzen du Markdown,
 
 Aplikazio bera da, Linux, Windows eta macOSen instalatuta. Instalatzaileak [deskarga-orrian](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest) daude.
 
-Nabigatzailearen aurrean hau gehitzen du: klik bikoitza `.md` fitxategiak irekitzeko, zuzeneko gordetzea deskargen karpetatik pasatu gabe, fitxa bakoitzaren fitxategia non dagoen, sagua gainetik pasatzean edo eskuineko botoiaren menuan (sakatuz gero, bere karpeta irekitzen da), sistemaren zuzentzaile ortografikoa eta konexiorik gabe funtzionatzea (Pandoc eta EdiCuaTeX barne datoz). Abiaraztean bertsio berririk dagoen egiaztatzen du eta **Deskargatu eta instalatu** eskaintzen du.
+Nabigatzailearen aurrean hau gehitzen du: klik bikoitza `.md` fitxategiak irekitzeko, zuzeneko gordetzea deskargen karpetatik pasatu gabe, fitxa bakoitzaren fitxategia non dagoen, sagua gainetik pasatzean edo eskuineko botoiaren menuan (sakatuz gero, bere karpeta irekitzen da), sistemaren zuzentzaile ortografikoa eta konexiorik gabe funtzionatzea (Pandoc, EdiCuaTeX, Sirena eta Mermaid barne datoz). Abiaraztean bertsio berririk dagoen egiaztatzen du eta **Deskargatu eta instalatu** eskaintzen du.
 
 **macOSen**, sistemak aplikazioa «hondatuta» dagoela abisatzen badu, arrastatu EdiMarkdown Aplikazioetara eta exekutatu Terminalean:
 
@@ -203,7 +229,7 @@ macOSek sinatu gabeko softwarearen aurrean ematen duen ohiko abisua besterik ez 
 
 EdiMarkdownek GitHub Flavored Markdown-ekin (GFM) bateragarria den oinarri bat erabiltzen du, Pandoc-en funtzioekin osatua: izenburuak, lodia eta etzana, zerrendak eta blokeko aipuak, estekak eta irudiak, kodea, taulak, zereginak (`- [ ]`) eta marratua (`~~testua~~`).
 
-Hedapenak LaTeX formulak, `[^oharra]` oin-oharrak, `[@giltza]` bibliografia-aipuak, YAML metadatuak, `H~2~O` azpiindizeak eta `m^2^` goi-indizeak dira.
+Hedapenak LaTeX formulak, `[^oharra]` oin-oharrak, `[@giltza]` bibliografia-aipuak, YAML metadatuak, `H~2~O` azpiindizeak, `m^2^` goi-indizeak eta Mermaid diagramak dira.
 
 **Mugak**: Pandoc-en hedapen guztiak ez daude bermatuta orri bisualean agertzeko. Definizio-zerrendak, sareta-taulak edo `:::` blokeak profil komunetik kanpo geratzen dira, nahiz eta Markdown editorean idatzi ditzakezun eta esportaziora heltzen diren.
 

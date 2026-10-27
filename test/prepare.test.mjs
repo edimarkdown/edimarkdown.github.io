@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
+  collectMermaidBlocks,
+  mapMermaidBlocks,
   ensureEpubMetadata,
   ensureExportMetadata,
   prepareLatexStandalone,
@@ -1135,5 +1137,29 @@ test('sin bloques en columnas la conversión es directa', async () => {
   calls.length = 0;
   await convertWithAstPasses(convert, '-f markdown -t docx', '<div style="columns:2">\n\nA\n\n</div>', { columns: { kind: 'docx' } });
   assert.deepEqual(calls, ['-f markdown -t json', '-f json -t docx']);
+});
+
+test('los diagramas Mermaid se localizan por la etiqueta de su bloque', () => {
+  const markdown = [
+    '# Título', '',
+    '```mermaid', 'flowchart LR', '  A --> B', '```', '',
+    '~~~ {.mermaid}', 'pie', '  "a": 1', '~~~', '',
+    '````markdown', '```mermaid', 'ejemplo dentro de otro bloque', '```', '````', '',
+    '- lista', '',
+    '  ```mermaid', '  graph TD', '    X-->Y', '  ```', '',
+    '```js', 'mermaid()', '```',
+  ].join('\n');
+  assert.deepEqual(collectMermaidBlocks(markdown), ['flowchart LR\n  A --> B', 'pie\n  "a": 1', 'graph TD\n  X-->Y']);
+  const replaced = mapMermaidBlocks(markdown, (code, index) => `[diagrama ${index}]`);
+  assert.match(replaced, /\n\n\[diagrama 0\]\n\n/);
+  assert.match(replaced, /\n\n\[diagrama 1\]\n\n/);
+  assert.match(replaced, /- lista\n\n {2}\[diagrama 2\]\n/);
+  // Lo que sustituye a un bloque de una lista queda entero dentro de ella.
+  const enLista = mapMermaidBlocks('- a\n\n  ```mermaid\n  pie\n  ```\n', () => 'uno\n\ndos');
+  assert.equal(enLista, '- a\n\n  uno\n\n  dos\n');
+  assert.match(replaced, /```mermaid\nejemplo dentro de otro bloque\n```/);
+  assert.match(replaced, /```js\nmermaid\(\)\n```/);
+  // Sin sustitución, el bloque se queda tal cual.
+  assert.equal(mapMermaidBlocks(markdown, () => undefined), markdown);
 });
 

@@ -26,6 +26,7 @@ const appFiles = [
   'manual-eu.md',
   'manual-gl.md',
   'manual.md',
+  'mermaid-diagrams.js',
   'odt-formulas.js',
   'office-format.js',
   'odt-tables.js',
@@ -71,6 +72,7 @@ const vendorFiles = new Map([
   ['node_modules/codemirror/mode/gfm/gfm.js', 'vendor/codemirror/mode/gfm/gfm.min.js'],
   ['node_modules/codemirror/addon/edit/continuelist.js', 'vendor/codemirror/addon/edit/continuelist.min.js'],
   ['node_modules/split.js/dist/split.min.js', 'vendor/split.min.js'],
+  ['node_modules/mermaid/dist/mermaid.min.js', 'vendor/mermaid/mermaid.min.js'],
   ['node_modules/tesseract.js/dist/tesseract.min.js', 'vendor/tesseract/tesseract.min.js'],
   ['node_modules/tesseract.js/dist/worker.min.js', 'vendor/tesseract/worker.min.js'],
   ['node_modules/@tesseract.js-data/spa/4.0.0_best_int/spa.traineddata.gz', 'vendor/tesseract/lang/spa.traineddata.gz'],
@@ -181,6 +183,31 @@ for (const [target, patch, place] of [
   await writeFile(targetPath, place === 'final' ? original + addition : `${addition}\n${original}`);
 }
 
+/*
+  Sirena, para editar los diagramas sin conexión. Su paquete de npm no lleva
+  Mermaid (lo pone el programa que la usa, ADR 30 de Sirena): se le añade el
+  mismo que dibuja la hoja, en la carpeta donde Sirena lo busca.
+*/
+const sirenaRoot = join(projectRoot, 'node_modules/sirenaapp');
+if (!existsSync(join(sirenaRoot, 'index.html'))) throw new Error('Falta el paquete sirenaapp');
+const sirenaOutput = join(outputRoot, 'vendor/sirena');
+await cp(sirenaRoot, sirenaOutput, {
+  recursive: true,
+  filter: source => !['node_modules', 'package.json', 'README.md'].includes(relative(sirenaRoot, source).split(sep)[0]),
+});
+await cp(
+  join(projectRoot, 'node_modules/mermaid/dist/mermaid.esm.min.mjs'),
+  join(sirenaOutput, 'vendor/mermaid/mermaid.esm.min.mjs'),
+);
+// Solo los trozos, sin sus mapas de depuración (multiplicarían por cuatro lo
+// que ocupa), como hace el guion `actualizar-mermaid.sh` de Sirena.
+await cp(
+  join(projectRoot, 'node_modules/mermaid/dist/chunks/mermaid.esm.min'),
+  join(sirenaOutput, 'vendor/mermaid/chunks/mermaid.esm.min'),
+  { recursive: true, filter: source => !source.endsWith('.map') },
+);
+await cp(join(projectRoot, 'node_modules/mermaid/LICENSE'), join(sirenaOutput, 'vendor/mermaid/LICENSE.txt'));
+
 let indexHtml = await readFile(join(outputRoot, 'index.html'), 'utf8');
 for (const [remoteUrl, localUrl] of indexReplacements) {
   if (!indexHtml.includes(remoteUrl)) throw new Error(`No se encontró la dependencia ${remoteUrl}`);
@@ -209,6 +236,15 @@ let pandocBridge = await readFile(pandocPath, 'utf8');
 if (!pandocBridge.includes(wasiRemoteUrl)) throw new Error('No se encontró la importación del shim WASI');
 pandocBridge = pandocBridge.replace(wasiRemoteUrl, './vendor/browser-wasi-shim/index.js');
 await writeFile(pandocPath, pandocBridge);
+
+// Mermaid no va en index.html: mermaid-diagrams.js lo carga solo si el
+// documento tiene diagramas, así que la dirección se cambia en ese archivo.
+const mermaidRemoteUrl = 'https://cdn.jsdelivr.net/npm/mermaid@12.2.0/dist/mermaid.min.js';
+const mermaidPath = join(outputRoot, 'mermaid-diagrams.js');
+let mermaidLoader = await readFile(mermaidPath, 'utf8');
+if (!mermaidLoader.includes(mermaidRemoteUrl)) throw new Error('No se encontró la dirección de Mermaid en mermaid-diagrams.js');
+mermaidLoader = mermaidLoader.replace(mermaidRemoteUrl, 'vendor/mermaid/mermaid.min.js');
+await writeFile(mermaidPath, mermaidLoader);
 
 const remainingRemoteDependencies = [...indexHtml.matchAll(/(?:src|href)="(https?:\/\/(?:cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)[^\"]+)"/g)]
   .map(match => match[1]);

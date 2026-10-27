@@ -1,5 +1,5 @@
 /* Única copia de la versión en la aplicación; package.json es la otra fuente. */
-const APP_VERSION = '3.3.0';
+const APP_VERSION = '3.4.0';
 const DESKTOP_RELEASE_BANNER_PREFIX = 'edimarkweb-hide-desktop-release-';
 const DESKTOP_RELEASE_BANNER_KEY = `${DESKTOP_RELEASE_BANNER_PREFIX}${APP_VERSION}`;
 const UPDATE_AUTO_CHECK_KEY = 'edimarkweb-update-autocheck';
@@ -176,6 +176,8 @@ const THEME_KEY = 'edimarkweb-theme';
 const BASE64_PANEL_KEY = 'edimarkweb-base64-panel';
 const EDICUATEX_BASE_URL = 'https://edicuatex.github.io/index.html';
 const EDICUATEX_DESKTOP_PATH = 'vendor/edicuatex/index.html';
+const SIRENA_BASE_URL = 'https://sirenaapp.github.io/index.html';
+const SIRENA_DESKTOP_PATH = 'vendor/sirena/index.html';
 const DESKTOP_PARAM_KEY = 'desktop';
 const DESKTOP_SPAWNED_KEY = 'desktop_spawned';
 const TABLE_SANITIZE_ATTRS = ['style', 'width', 'height', 'border', 'cellspacing', 'cellpadding', 'align', 'valign', 'bgcolor', 'role', 'class', 'id'];
@@ -189,6 +191,11 @@ const SIMPLE_TEXT_HTML_TAGS = new Set(['p', 'div', 'span', 'br']);
 
 let edicuatexWindow = null;
 let edicuatexOrigin = null;
+let sirenaWindow = null;
+let sirenaOrigin = null;
+// El diagrama que se está editando en Sirena (su código y cuántos iguales hay
+// antes en el documento), o null si se está creando uno nuevo.
+let sirenaTarget = null;
 let desktopWindow = null;
 let desktopWindowMonitor = null;
 const DESKTOP_SIZE_KEY = 'edimarkweb-desktop-size';
@@ -5762,6 +5769,8 @@ function updateHtml() {
         const parsedHtml = marked.parse(footnotes.markdown) + renderPreviewFootnotes(footnotes.notes);
         const restoredHtml = restoreMathSegments(parsedHtml, mathSegments);
         htmlOutput.replaceChildren(previewFragmentFromHtml(restoredHtml));
+        // Antes del índice de líneas: cada diagrama ocupa el sitio de su bloque.
+        if (window.EdiMarkMermaid) window.EdiMarkMermaid.prepare(htmlOutput);
         htmlOutput.querySelectorAll('li input[type="checkbox"]').forEach(input => {
             if (input.closest('[data-edimark-footnotes]')) return;
             input.disabled = false;
@@ -5808,7 +5817,9 @@ function updateHtml() {
                 delimiters: [
                     {left: '$$', right: '$$', display: true}, {left: '\\[', right: '\\]', display: true},
                     {left: '$', right: '$', display: false}, {left: '\\(', right: '\\)', display: false}
-                ], throwOnError: false
+                ], throwOnError: false,
+                // El texto de un diagrama no es una fórmula del documento.
+                ignoredClasses: ['edimark-mermaid'],
             });
             annotateRenderedMath(htmlOutput, mathSegments);
             applyPreviewMathFont(htmlOutput);
@@ -7772,7 +7783,7 @@ async function importFileWithPandoc(file, { index = 1, total = 1 } = {}) {
     }
     if (format === 'pdf') {
         try {
-            const { importPdf } = await import('./pdf-import.js?v=3.3.0');
+            const { importPdf } = await import('./pdf-import.js?v=3.4.0');
             const name = getSafeDocumentName(file.name);
             // Crear el documento ocurre dentro del diálogo, que se queda a la
             // vista avisando: con un informe entero no es cosa de un instante.
@@ -8432,6 +8443,8 @@ function buildHtmlWithTex() {
   const htmlOutput = document.getElementById('html-output');
   if (!htmlOutput) return '';
   const clone = restoreOriginalEmbeds(restoreOriginalImageSources(htmlOutput.cloneNode(true)));
+  // El diagrama vuelve a ser su bloque de código: es lo que guarda el Markdown.
+  if (window.EdiMarkMermaid) window.EdiMarkMermaid.restore(clone);
   /*
     El índice de la hoja es una ayuda para mirar, no contenido: se retira antes
     de que la hoja se convierta en Markdown, en HTML o en lo que sea que salga
@@ -9038,6 +9051,10 @@ window.onload = async () => {
     const edicuatexModalOverlay = document.getElementById('edicuatex-modal-overlay');
     const edicuatexFrame = document.getElementById('edicuatex-frame');
     const edicuatexCloseBtn = document.getElementById('edicuatex-close-btn');
+    const openSirenaBtn = document.getElementById('open-sirena-btn');
+    const sirenaModalOverlay = document.getElementById('sirena-modal-overlay');
+    const sirenaFrame = document.getElementById('sirena-frame');
+    const sirenaCloseBtn = document.getElementById('sirena-close-btn');
     const importFileBtn = document.getElementById('import-file-btn');
     const importFileInput = document.getElementById('import-file-input');
     const actionsMenuContainer = document.getElementById('actions-menu-container');
@@ -9896,6 +9913,190 @@ window.onload = async () => {
         if (event.key === 'Escape' && edicuatexModalOverlay?.style.display === 'flex') {
             closeEmbeddedEdicuatex();
         }
+        if (event.key === 'Escape' && sirenaModalOverlay?.style.display === 'flex') {
+            closeSirena();
+        }
+    });
+
+    /*
+      Sirena, el editor de diagramas Mermaid, se abre como EdiCuaTeX: en una
+      ventana aparte en la web y dentro de la aplicación en el escritorio, que
+      lleva su copia. El diagrama le llega comprimido en el enlace, como en los
+      enlaces que comparte la propia Sirena, y vuelve por postMessage al pulsar
+      Insertar (ADR 0004).
+    */
+    async function sirenaHash(code) {
+        const bytes = new TextEncoder().encode(code);
+        const toBase64Url = (data) => {
+            let binary = '';
+            data.forEach((byte) => { binary += String.fromCharCode(byte); });
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        };
+        if (typeof CompressionStream !== 'function') return `d=${toBase64Url(bytes)}`;
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        return `z=${toBase64Url(new Uint8Array(await new Response(stream).arrayBuffer()))}`;
+    }
+
+    async function buildSirenaUrl(code) {
+        const url = new URL(nativeMode ? SIRENA_DESKTOP_PATH : SIRENA_BASE_URL, window.location.href);
+        url.searchParams.set('pm', '1');
+        url.searchParams.set('origin', resolveHostOrigin());
+        url.searchParams.set('lang', window.__edimarkLang || document.documentElement.lang || 'es');
+        url.hash = code ? await sirenaHash(code) : '';
+        return url.toString();
+    }
+
+    function closeSirena({ restoreFocus = true } = {}) {
+        if (sirenaWindow && !sirenaWindow.closed) {
+            try { sirenaWindow.close(); } catch (_) {}
+        }
+        sirenaWindow = null;
+        if (sirenaModalOverlay?.style.display === 'flex') {
+            sirenaModalOverlay.style.display = 'none';
+            sirenaModalOverlay.classList.add('hidden');
+            if (sirenaFrame) sirenaFrame.src = 'about:blank';
+            if (restoreFocus) openSirenaBtn?.focus();
+        }
+        sirenaOrigin = null;
+        sirenaTarget = null;
+    }
+
+    async function openSirena(target = null) {
+        if (sirenaWindow && !sirenaWindow.closed) {
+            try { sirenaWindow.close(); } catch (_) {}
+            sirenaWindow = null;
+        }
+        // La ventana se abre ya, antes de preparar el enlace: si se abriera
+        // después de esperar, el navegador la tomaría por una ventana no pedida.
+        const child = nativeMode ? null : window.open('about:blank', 'sirena', 'width=1200,height=820,resizable=yes,scrollbars=yes');
+        if (!nativeMode && !child) {
+            notifyUser(getTranslation('sirena_popup_blocked', 'Activa las ventanas emergentes en tu navegador para usar Sirena.'));
+            return;
+        }
+        sirenaTarget = target;
+        const url = await buildSirenaUrl(target ? target.code : '');
+        try {
+            sirenaOrigin = new URL(url).origin;
+        } catch (err) {
+            sirenaOrigin = null;
+        }
+        if (nativeMode && sirenaModalOverlay && sirenaFrame) {
+            sirenaFrame.src = url;
+            sirenaModalOverlay.classList.remove('hidden');
+            sirenaModalOverlay.style.display = 'flex';
+            sirenaCloseBtn?.focus();
+            return;
+        }
+        child.location.href = url;
+        sirenaWindow = child;
+        child.focus();
+    }
+
+    // El diagrama de la hoja que se quiere editar: su código y, si hay varios
+    // iguales, cuál de ellos es.
+    function editDiagramInSirena(wrapper) {
+        const code = wrapper?.dataset?.edimarkMermaid;
+        if (typeof code !== 'string') return;
+        const same = Array.from(document.querySelectorAll('#html-output .edimark-mermaid'))
+            .filter(other => other.dataset.edimarkMermaid === code);
+        openSirena({ code, rank: Math.max(0, same.indexOf(wrapper)) });
+    }
+
+    /*
+      Lo que vuelve de Sirena sustituye al código del mismo bloque, con su
+      misma valla (``` o ~~~) y su sangría, en una sola operación del editor
+      para que se pueda deshacer. Si el bloque ya no está tal cual, el diagrama
+      se añade como nuevo y se avisa.
+    */
+    function replaceDiagramInMarkdown(target, newCode) {
+        const mapBlocks = window.PandocExporter?.mapMermaidBlocks;
+        if (typeof mapBlocks !== 'function' || !markdownEditor) return false;
+        // Las posiciones del editor son las del texto que enseña, con las
+        // imágenes incrustadas recogidas; un diagrama no lleva ninguna.
+        const text = typeof markdownEditor.getDisplayValue === 'function'
+            ? markdownEditor.getDisplayValue()
+            : markdownEditor.getValue();
+        const posAt = (offset) => {
+            const before = text.slice(0, offset).split('\n');
+            return { line: before.length - 1, ch: before[before.length - 1].length };
+        };
+        const marker = '\u0000edimark-diagram\u0000';
+        let seen = -1;
+        const withMarker = mapBlocks(text, (code) => {
+            if (code !== target.code) return undefined;
+            seen += 1;
+            return seen === target.rank ? marker : undefined;
+        });
+        const start = withMarker.indexOf(marker);
+        if (start < 0) return false;
+        const end = start + text.length - (withMarker.length - marker.length);
+        const lines = text.slice(start, end).split('\n');
+        const opening = lines[0];
+        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+        const indent = text.slice(lineStart, start);
+        let fence = (opening.match(/^(`{3,}|~{3,})/) || ['```'])[0];
+        const closingLine = lines.length > 1 && /^[ \t]*(`{3,}|~{3,})[ \t]*$/.test(lines[lines.length - 1])
+            ? lines[lines.length - 1]
+            : null;
+        let newOpening = opening;
+        let closing = closingLine || `${indent}${fence}`;
+        // Una línea del código que empiece por la misma valla cerraría el bloque.
+        const longest = Math.max(0, ...(newCode.match(new RegExp(`^[ \\t]*\\${fence[0]}{3,}`, 'gm')) || [])
+            .map(line => line.trim().length));
+        if (longest >= fence.length) {
+            const longer = fence[0].repeat(longest + 1);
+            newOpening = longer + opening.slice(fence.length);
+            closing = `${indent}${longer}`;
+            fence = longer;
+        }
+        const body = newCode.split('\n').map(line => (line ? `${indent}${line}` : line)).join('\n');
+        const replacement = `${newOpening}\n${body}\n${closing}`;
+        markdownEditor.replaceRange(replacement, posAt(start), posAt(end));
+        return true;
+    }
+
+    function insertNewDiagram(code) {
+        const block = `\`\`\`mermaid\n${code}\n\`\`\``;
+        if (isPreviewFormatTarget() && insertMarkdownIntoPreview(block)) return;
+        markdownEditor.replaceSelection(`\n\n${block}\n\n`);
+        markdownEditor.focus();
+    }
+
+    openSirenaBtn?.addEventListener('click', () => openSirena(null));
+    sirenaCloseBtn?.addEventListener('click', () => closeSirena());
+    sirenaModalOverlay?.addEventListener('click', (event) => {
+        if (event.target === sirenaModalOverlay) closeSirena();
+    });
+    const sheet = document.getElementById('html-output');
+    sheet?.addEventListener('dblclick', (event) => {
+        const wrapper = event.target.closest?.('.edimark-mermaid');
+        if (!wrapper) return;
+        event.preventDefault();
+        editDiagramInSirena(wrapper);
+    });
+    sheet?.addEventListener('click', (event) => {
+        const button = event.target.closest?.('.edimark-mermaid-edit');
+        if (!button) return;
+        event.preventDefault();
+        editDiagramInSirena(button.closest('.edimark-mermaid'));
+    });
+
+    window.addEventListener('message', (event) => {
+        const type = event?.data?.type;
+        if (type !== 'sirena:result' && type !== 'sirena:cancel') return;
+        if (sirenaOrigin && sirenaOrigin !== 'null' && event.origin !== sirenaOrigin) return;
+        const expected = sirenaModalOverlay?.style.display === 'flex' ? sirenaFrame?.contentWindow : sirenaWindow;
+        if (!expected || event.source !== expected) return;
+        const target = sirenaTarget;
+        const code = type === 'sirena:result' && typeof event.data.code === 'string' ? event.data.code.trim() : '';
+        closeSirena({ restoreFocus: false });
+        if (!code) return;
+        if (target && target.code === code) return;
+        if (target && replaceDiagramInMarkdown(target, code)) return;
+        if (target) {
+            notifyUser(getTranslation('sirena_not_found', 'El diagrama ha cambiado en el documento mientras se editaba; el de Sirena se ha añadido como uno nuevo.'));
+        }
+        insertNewDiagram(code);
     });
 
     if (exportMenuBtn) {
@@ -10577,9 +10778,21 @@ window.onload = async () => {
                 }
 
                 let latexResult;
+                // Los diagramas van en una carpeta junto al .tex, como imágenes.
+                let diagrams = { markdown: rawMarkdown, files: {} };
                 try {
+                    if (typeof exporter.prepareDiagramImages === 'function') {
+                        diagrams = await exporter.prepareDiagramImages(rawMarkdown, {
+                            onStatus: updateExportStatus,
+                            onNotification: (message) => {
+                                if (message) notifyUser(message);
+                            },
+                            fileName: index => `diagrams/diagram-${index + 1}.png`,
+                            source: name => name,
+                        });
+                    }
                     latexResult = await exporter.generateLatex({
-                        markdown: rawMarkdown,
+                        markdown: diagrams.markdown,
                         standalone: true,
                         onStatus: updateExportStatus,
                         onNotification: (message) => {
@@ -10595,7 +10808,10 @@ window.onload = async () => {
                 const latexFilename = `${safeName}.tex`;
                 const saveResult = await saveFile(latexFilename, latexResult, 'application/x-tex;charset=utf-8', {
                     extensions: ['tex'],
-                    companionFiles: await collectLinkedDocumentAssets(currentDoc, rawMarkdown),
+                    companionFiles: [
+                        ...await collectLinkedDocumentAssets(currentDoc, rawMarkdown),
+                        ...Object.entries(diagrams.files).map(([relativePath, contents]) => ({ relativePath, contents })),
+                    ],
                 });
                 if (saveResult?.saved) {
                     updateExportStatus(getTranslation('latex_export_done', 'Exportación a LaTeX completada.'));
@@ -11861,6 +12077,7 @@ window.onload = async () => {
             const htmlOutput = document.getElementById('html-output');
             htmlOutput.replaceChildren(previewFragmentFromHtml(citedHtml));
             previewChanged = true;
+            if (window.EdiMarkMermaid) window.EdiMarkMermaid.prepare(htmlOutput);
             fitWidePreformattedBlocks(htmlOutput);
             applyRelativeImageSources(htmlOutput, docs.find(doc => doc.id === currentId));
             applyDesktopEmbedCards(htmlOutput);
@@ -11873,6 +12090,7 @@ window.onload = async () => {
                         { left: '\\(', right: '\\)', display: false },
                     ],
                     throwOnError: false,
+                    ignoredClasses: ['edimark-mermaid'],
                 });
             }
             applyPreviewMathFont(htmlOutput);
@@ -11895,6 +12113,8 @@ window.onload = async () => {
         // Lo que se imprime es la hoja, así que hay que tenerla compuesta.
         asegurarLaHoja();
         const citedPreview = await prepareCitationsForPrint();
+        // Un diagrama que aún se está dibujando saldría en el papel como código.
+        if (window.EdiMarkMermaid) await window.EdiMarkMermaid.ready();
         const preview = getPreviewScroller();
         if (preview) {
             preview.scrollTop = 0;

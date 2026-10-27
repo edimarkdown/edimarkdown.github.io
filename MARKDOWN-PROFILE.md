@@ -20,6 +20,7 @@ esas rutas, no una conversión automática de los archivos del usuario.
 | Enlaces | `[texto](URL)`; se reconocen también URL HTTP(S) sueltas |
 | Imágenes | `![alternativo](ruta)`; conservar la carpeta de recursos al trasladar el archivo |
 | Figuras | Una imagen con texto, sola en su párrafo: `![Pie](ruta)`. Es figura con pie en la hoja y en Pandoc (`implicit_figures`); se centra en todos los formatos |
+| Diagramas | Bloque de código con la etiqueta `mermaid` (o `{.mermaid}`). La hoja lo dibuja con Mermaid y la exportación lo convierte en una imagen centrada y sin pie; el Markdown conserva el código ([ADR 4](docs/adr/0004-los-diagramas-mermaid-se-dibujan-en-la-hoja-salen-como-imagen-y-se-editan-con-sirena.md)) |
 | Separador | `---` en su propio bloque, separado con líneas en blanco |
 | Salto visible | Dos espacios al final de línea; un salto normal continúa el párrafo |
 | Índices | `H~2~O`, `m^2^`; los espacios interiores deben escaparse |

@@ -8,6 +8,7 @@ las alternativas descartadas y sus consecuencias.
 | [1](0001-la-ruta-del-menu-de-la-pestana-abre-su-carpeta-con-el-opener-de-tauri.md) | La ruta del menú de la pestaña abre su carpeta con el opener de Tauri | aceptado |
 | [2](0002-la-hoja-reparte-columnas-y-tablas-por-paginas-sin-anadir-nada-al-texto.md) | La hoja reparte columnas y tablas por páginas sin añadir nada al texto | aceptado |
 | [3](0003-las-columnas-de-un-div-salen-en-docx-y-odt-como-secciones.md) | Las columnas de un div salen en DOCX y ODT como secciones | aceptado |
+| [4](0004-los-diagramas-mermaid-se-dibujan-en-la-hoja-salen-como-imagen-y-se-editan-con-sirena.md) | Los diagramas Mermaid se dibujan en la hoja, salen como imagen y se editan con Sirena | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número

@@ -4,6 +4,13 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.4.0] - 2026-10-27
+
+- Los bloques de código con la etiqueta `mermaid` se dibujan como diagramas en la vista previa, en pantalla y al imprimir. El archivo `.md` conserva el código. Si el diagrama tiene un error, se ve su código con el aviso de Mermaid, que dice en qué línea está.
+- Al exportar a DOCX, ODT, EPUB, HTML o LaTeX, cada diagrama sale como una imagen centrada, igual que en la vista previa. Antes salía como un bloque de código.
+- Los diagramas se crean y se cambian con Sirena, el editor visual de diagramas Mermaid: un botón nuevo de la barra abre uno nuevo, y el doble clic sobre un diagrama, o el lápiz de su esquina, abre ese diagrama. Al insertarlo vuelve a su sitio en el documento, y el cambio se puede deshacer.
+- La aplicación de escritorio lleva Sirena y Mermaid incluidos, así que los diagramas funcionan también sin conexión.
+
 ## [3.3.0] - 2026-10-26
 
 - Los bloques en columnas (`<div style="column-count:4">`) salen en columnas también en DOCX y ODT, con el mismo número de columnas, la misma separación y la línea entre columnas si la hay. Antes Word y LibreOffice lo ponían todo en una sola columna.

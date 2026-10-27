@@ -8067,3 +8067,115 @@ test('la vista previa deja de seguir al teclado cuando rehacerla cuesta demasiad
   await page.locator('#html-output', { hasText: 'Último texto' }).waitFor();
   assert.equal(await page.locator('#preview-stale').isVisible(), false);
 });
+
+/*
+  Diagramas Mermaid (ADR 0004). Mermaid llega del CDN, como el resto de
+  bibliotecas de la web. Sirena se sirve desde su paquete de npm, con el
+  Mermaid de la hoja en la carpeta donde ella lo busca, desviando las
+  peticiones a sirenaapp.github.io: así el origen es el de verdad.
+*/
+const DIAGRAMA = 'flowchart LR\n    A[Entrega] --> B{¿A tiempo?}\n    B -- Sí --> C[Se corrige]';
+const DIBUJO = '#html-output .edimark-mermaid svg[id^="edimark-mermaid"]';
+
+test('un diagrama Mermaid se dibuja en la hoja y vuelve intacto al Markdown', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  const fuente = `# Diagramas\n\n\`\`\`mermaid\n${DIAGRAMA}\n\`\`\`\n\n`
+    + '```mermaid\nflowchart TD\n    esto no es ][\n```\n\nFinal del documento.\n';
+  await page.locator('#new-tab-btn').click();
+  await page.evaluate(md => markdownEditor.setValue(md), fuente);
+  await page.locator(DIBUJO).waitFor({ timeout: 30000 });
+  // El que tiene un error enseña su código y el aviso de Mermaid con la línea.
+  await page.locator('#html-output .edimark-mermaid-error').waitFor();
+  assert.match(await page.locator('#html-output .edimark-mermaid-detail').innerText(), /line 2/);
+
+  await page.locator('#html-output p').filter({ hasText: /^Final del documento\.$/ }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Editado.');
+  const editado = await page.evaluate(() => {
+    document.getElementById('html-output').focus();
+    forceMarkdownUpdate = true;
+    updateMarkdown();
+    return markdownEditor.getValue();
+  });
+  assert.ok(editado.includes('Final del documento. Editado.'), 'la edición no llegó al Markdown');
+  assert.ok(editado.includes(`\`\`\`mermaid\n${DIAGRAMA}\n\`\`\``), `el diagrama no volvió igual:\n${editado}`);
+  assert.ok(editado.includes('```mermaid\nflowchart TD\n    esto no es ][\n```'), `el diagrama con error no volvió igual:\n${editado}`);
+});
+
+test('al exportar, cada diagrama es una imagen centrada y sin pie', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  const preparado = await page.evaluate(async (codigo) => {
+    const resultado = await window.PandocExporter.prepareDiagramImages(
+      `Antes.\n\n\`\`\`mermaid\n${codigo}\n\`\`\`\n\nDespués.\n`, {});
+    return {
+      markdown: resultado.markdown,
+      failed: resultado.failed,
+      files: Object.fromEntries(Object.entries(resultado.files).map(([nombre, bytes]) => [nombre, Array.from(bytes)])),
+    };
+  }, DIAGRAMA);
+  assert.equal(preparado.failed, 0);
+  const files = Object.fromEntries(Object.entries(preparado.files).map(([nombre, bytes]) => [nombre, new Uint8Array(bytes)]));
+  assert.deepEqual(Object.keys(files), ['edimark-diagram-0.png']);
+  assert.equal(new TextDecoder().decode(files['edimark-diagram-0.png'].slice(1, 4)), 'PNG');
+
+  const html = new TextDecoder().decode((await runPandoc(`-f ${MARKDOWN_READER_NO_AUTO_IDS} -t html`, preparado.markdown, files)).bytes);
+  assert.match(html, /<div data-custom-style="Figure">\s*<p><img src="\/edimark-diagram-0\.png" style="width:\d+px"[^>]*alt="Diagrama"/);
+  assert.doesNotMatch(html, /<figcaption|<pre/);
+  const latex = new TextDecoder().decode((await runPandoc(`-f ${MARKDOWN_READER_NO_AUTO_IDS} -t latex`, preparado.markdown, files)).bytes);
+  assert.match(latex, /\\begin\{center\}\s*\\includegraphics\[width=[\d.]+in[^\]]*\]\{\/edimark-diagram-0\.png\}~?\s*\\end\{center\}/);
+  const docx = await runPandoc(`-f ${MARKDOWN_READER_NO_AUTO_IDS} -t docx -o out.docx`, preparado.markdown, files);
+  const { readZipEntries } = await import('../zip-reader.js');
+  const entries = await readZipEntries(docx.bytes);
+  const documento = new TextDecoder().decode(entries.get('word/document.xml'));
+  assert.ok([...entries.keys()].some(nombre => /^word\/media\/.+\.png$/.test(nombre)), 'el DOCX no lleva la imagen');
+  assert.match(documento, /w:pStyle w:val="Figure"/);
+});
+
+test('Sirena edita un diagrama de la hoja y lo devuelve a su bloque', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  const sirenaRoot = join(defaultRepoRoot, 'node_modules', 'sirenaapp');
+  const mermaidDist = join(defaultRepoRoot, 'node_modules', 'mermaid', 'dist');
+  const tipos = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+  await context.route(/^https:\/\/sirenaapp\.github\.io\//, async (route) => {
+    const ruta = decodeURIComponent(new URL(route.request().url()).pathname).replace(/^\/+/, '') || 'index.html';
+    const archivo = ruta.startsWith('vendor/mermaid/')
+      ? join(mermaidDist, ruta.slice('vendor/mermaid/'.length))
+      : join(sirenaRoot, ruta);
+    try {
+      await route.fulfill({ status: 200, contentType: tipos[extname(archivo)] || 'application/octet-stream', body: await readFile(archivo) });
+    } catch (_error) {
+      await route.fulfill({ status: 404, body: '' });
+    }
+  });
+  // Dos diagramas iguales: se edita el segundo, el de la lista, que conserva su sangría.
+  const fuente = '```mermaid\nflowchart LR\n    A --> B\n```\n\n- Lista\n\n  ```mermaid\n  flowchart LR\n      A --> B\n  ```\n';
+  await page.locator('#new-tab-btn').click();
+  await page.evaluate(md => markdownEditor.setValue(md), fuente);
+  await page.waitForFunction(selector => document.querySelectorAll(selector).length === 2, DIBUJO, { timeout: 30000 });
+
+  const [sirena] = await Promise.all([
+    context.waitForEvent('page'),
+    page.locator('#html-output .edimark-mermaid').nth(1).dblclick(),
+  ]);
+  await sirena.waitForFunction(() => document.body.classList.contains('otro-programa'), null, { timeout: 30000 });
+  assert.equal(await sirena.locator('#editor').inputValue(), 'flowchart LR\n    A --> B');
+  await sirena.locator('#editor').fill('flowchart LR\n    A --> B\n    B --> C');
+  const cerrada = sirena.waitForEvent('close');
+  await sirena.locator('#exe-insertar').click();
+  await cerrada;
+  await page.waitForFunction(() => markdownEditor.getValue().includes('B --> C'));
+  assert.equal(await page.evaluate(() => markdownEditor.getValue()),
+    fuente.replace('      A --> B\n  ```', '      A --> B\n      B --> C\n  ```'));
+
+  // Nuevo desde la barra y cancelar: Cancelar no cambia nada.
+  const antes = await page.evaluate(() => markdownEditor.getValue());
+  const [otra] = await Promise.all([context.waitForEvent('page'), page.locator('#open-sirena-btn').click()]);
+  await otra.waitForFunction(() => document.body.classList.contains('otro-programa'), null, { timeout: 30000 });
+  const cerradaOtra = otra.waitForEvent('close');
+  await otra.locator('#exe-cancelar').click();
+  await cerradaOtra;
+  assert.equal(await page.evaluate(() => markdownEditor.getValue()), antes);
+});

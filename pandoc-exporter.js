@@ -36,6 +36,8 @@ import {
   insertLatexPageBreaksBeforeH1,
   extractMarkdownTitle,
   collectFetchableImageUrls,
+  collectMermaidBlocks,
+  mapMermaidBlocks,
   inlineArchiveImages,
   restoreOdtTableHeaders,
   prepareOdtForImport,
@@ -599,6 +601,31 @@ async function inlineFetchableImages(markdown, { onStatus } = {}) {
   return { markdown: prepared, skipped, oversized, files };
 }
 
+/*
+  Los diagramas Mermaid salen como imagen: Pandoc los dejaría como un bloque
+  de código, y el documento no enseñaría lo que se ve en la hoja. Los dibuja
+  mermaid-diagrams.js; uno con errores se queda como código y se avisa.
+*/
+async function prepareDiagramImages(markdown, { onStatus, onNotification, fileName, source } = {}) {
+  const api = window.EdiMarkMermaid;
+  if (!api || collectMermaidBlocks(markdown).length === 0) return { markdown, files: {} };
+  triggerStatus(onStatus, 'mermaid_export_drawing', 'Dibujando los diagramas...');
+  const result = await api.replaceWithImages(markdown, {
+    mapBlocks: mapMermaidBlocks,
+    collectBlocks: collectMermaidBlocks,
+    ...(fileName ? { fileName } : {}),
+    ...(source ? { source } : {}),
+  });
+  if (result.failed > 0) {
+    triggerNotification(
+      onNotification,
+      'mermaid_export_failed',
+      'Algún diagrama no se ha podido dibujar y se ha exportado como código.',
+    );
+  }
+  return result;
+}
+
 function stripPandocHeadingIds(markdown) {
   if (typeof markdown !== 'string' || !markdown.includes('{#')) {
     return markdown;
@@ -822,6 +849,10 @@ async function exportDocument({
     files: imageFiles,
   } = await inlineFetchableImages(normalized, { onStatus });
   normalized = withImages;
+  // Después de las imágenes: las de los diagramas ya van montadas junto a
+  // Pandoc, y la descarga de imágenes intentaría traerlas de la web.
+  const diagrams = await prepareDiagramImages(normalized, { onStatus, onNotification });
+  normalized = diagrams.markdown;
   if (skippedImages.length > 0) {
     triggerNotification(
       onNotification,
@@ -863,7 +894,7 @@ async function exportDocument({
       La portada solo existe en el EPUB, y la imagen tiene que estar montada en
       el sistema de ficheros del WASM para que Pandoc la encuentre.
     */
-    const extraFiles = { ...citations.files, ...imageFiles };
+    const extraFiles = { ...citations.files, ...imageFiles, ...diagrams.files };
     if (normalizedFormat === 'epub') {
       const cover = epubCoverFile({
         title: extractMarkdownTitle(normalized) || String(documentTitle || '').trim(),
@@ -978,6 +1009,24 @@ async function generateHtml({
     }
     withLanguage = replaceImageUrls(withLanguage, replacements);
   }
+  /*
+    La página completa lleva los diagramas como imagen dentro de sí misma,
+    igual que las imágenes del documento. El fragmento no: se usa para
+    componer la hoja al imprimir, que los dibuja ella.
+  */
+  if (standalone) {
+    const prefix = `edimark-diagram-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-`;
+    const diagrams = await prepareDiagramImages(withLanguage, {
+      onStatus,
+      onNotification,
+      fileName: index => `${prefix}${index}.png`,
+      source: name => name,
+    });
+    withLanguage = diagrams.markdown;
+    for (const [name, bytes] of Object.entries(diagrams.files)) {
+      htmlImages.set(name, await blobToDataUri(new Blob([bytes], { type: 'image/png' })));
+    }
+  }
 
   const htmlFormatCss = standalone ? documentFormatCss(normalized) : '';
 
@@ -1011,7 +1060,7 @@ async function generateHtml({
       htmlResult = htmlResult.replaceAll(`src="${placeholder}"`, () => `src="${dataUri}"`);
     }
 
-    const htmlCss = [htmlFormatCss, standalone && /<figure\b/.test(htmlResult) ? FIGURE_CSS : '']
+    const htmlCss = [htmlFormatCss, standalone && /<figure\b|data-custom-style="Figure"/.test(htmlResult) ? FIGURE_CSS : '']
       .filter(Boolean).join('\n');
     if (htmlCss) {
       // Al final de la cabecera para ganar a los estilos de la plantilla.
@@ -1278,6 +1327,10 @@ window.PandocExporter = {
   exportDocument,
   generateHtml,
   generateLatex,
+  // El LaTeX descargado lleva los diagramas en archivos aparte, junto al .tex.
+  prepareDiagramImages,
+  // Y para devolver a su bloque el diagrama que vuelve de Sirena.
+  mapMermaidBlocks,
   convertLatexToMarkdown,
   importToMarkdown,
   trimInlineMath,

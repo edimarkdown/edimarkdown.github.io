@@ -93,6 +93,32 @@ Letras griegas ($\alpha$, $\Omega$), subíndices ($H_2O$) y símbolos de conjunt
 
 ---
 
+## Diagramas
+
+Un bloque de código con la etiqueta `mermaid` se dibuja como diagrama. Este código:
+
+````markdown
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+````
+
+```mermaid
+flowchart LR
+    A[Idea] --> B[Borrador]
+    B --> C[Entrega]
+```
+
+* **Para crear uno sin saber Mermaid**, el botón de diagrama de la barra, junto al de EdiCuaTeX, abre **Sirena**, un editor visual de diagramas. **Insertar** lo pone en el documento.
+* **Para cambiarlo**, doble clic sobre el diagrama, o el lápiz de su esquina: se abre en Sirena y, al insertarlo, sustituye al que había.
+* Si el código tiene un error, se ve el código con el aviso de Mermaid, que dice en qué línea está.
+
+Al exportar a DOCX, ODT, EPUB, HTML o TEX, cada diagrama sale como una imagen centrada, y el archivo `.md` conserva el código. En la versión web, la primera vez que aparece un diagrama hace falta conexión para cargar Mermaid.
+
+---
+
 ## Citas y bibliografía
 
 En **Configuración → Opciones generales… → Citas** puedes cargar una biblioteca **BibTeX** (`.bib`) o **CSL JSON** (`.json`), o probar con **Cargar bibliografía de ejemplo**. El botón del libro (`Ctrl+Alt+B`) abre un buscador por autor, título o año, con **Añadir referencia manualmente** siempre a mano.
@@ -139,7 +165,7 @@ El botón de copiar, junto a Exportar, lleva el contenido al portapapeles en Mar
 
 Es la misma aplicación instalada en Linux, Windows y macOS. Los instaladores están en la [página de descargas](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest).
 
-Frente al navegador añade: doble clic para abrir archivos `.md`, guardado directo sin pasar por la carpeta de descargas, la ubicación del archivo de cada pestaña al pasar el ratón por encima o en su menú del botón derecho (al pulsarla se abre su carpeta), corrector ortográfico del sistema y funcionamiento sin conexión (Pandoc y EdiCuaTeX van incluidos). Al arrancar comprueba si hay una versión nueva y avisa con **Descargar e instalar**.
+Frente al navegador añade: doble clic para abrir archivos `.md`, guardado directo sin pasar por la carpeta de descargas, la ubicación del archivo de cada pestaña al pasar el ratón por encima o en su menú del botón derecho (al pulsarla se abre su carpeta), corrector ortográfico del sistema y funcionamiento sin conexión (Pandoc, EdiCuaTeX, Sirena y Mermaid van incluidos). Al arrancar comprueba si hay una versión nueva y avisa con **Descargar e instalar**.
 
 **En macOS**, si el sistema avisa de que la aplicación «está dañada», arrastra EdiMarkdown a Aplicaciones y ejecuta en el Terminal:
 
@@ -203,7 +229,7 @@ Es solo el aviso habitual de macOS ante software sin firmar; con ese comando se 
 
 EdiMarkdown usa una base compatible con GitHub Flavored Markdown (GFM), ampliada con funciones de Pandoc: encabezados, negrita y cursiva, listas y citas en bloque, enlaces e imágenes, código, tablas, tareas (`- [ ]`) y tachado (`~~texto~~`).
 
-Las ampliaciones son las fórmulas LaTeX, las notas al pie `[^nota]`, las citas bibliográficas `[@clave]`, los metadatos YAML, los subíndices `H~2~O` y los superíndices `m^2^`.
+Las ampliaciones son las fórmulas LaTeX, las notas al pie `[^nota]`, las citas bibliográficas `[@clave]`, los metadatos YAML, los subíndices `H~2~O`, los superíndices `m^2^` y los diagramas Mermaid.
 
 **Límites**: no todas las extensiones de Pandoc se ven en la hoja visual. Las listas de definiciones, las tablas de rejilla o los bloques `:::` quedan fuera del perfil común, aunque puedes escribirlas igualmente en el editor Markdown y llegarán a la exportación.
 
