@@ -1075,7 +1075,20 @@ test('listas desplegables: recuerdan el tipo, teclado y menú móvil sin desbord
   // Sin desplazar la página, como quien toca un botón que ya ve abajo del todo.
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.locator('#list-menu-btn').dispatchEvent('click');
-  assert.equal(await page.evaluate(() => window.scrollY), 0, 'la página salta al abrir el menú');
+  // Si salta, el mensaje dice desde dónde: qué tiene el foco y dónde quedó el menú.
+  const salto = await page.evaluate(() => {
+    const caja = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map(Math.round).join(','); };
+    const foco = document.activeElement;
+    return {
+      scrollY: window.scrollY,
+      foco: foco ? `${foco.tagName}#${foco.id}.${String(foco.className).slice(0, 40)} ${caja(foco)}` : '',
+      menu: caja(document.getElementById('list-options')),
+      transform: document.getElementById('list-options')?.style.transform || '',
+      grupo: caja(document.getElementById('list-dropdown-container')),
+      alto: `${window.innerHeight}/${document.documentElement.scrollHeight}`,
+    };
+  });
+  assert.equal(salto.scrollY, 0, `la página salta al abrir el menú: ${JSON.stringify(salto)} (sin sitio: ${sinSitio}, grupo antes: ${JSON.stringify(group)})`);
   const arriba = await page.locator('#list-options').boundingBox();
   const grupoArriba = await page.locator('#list-dropdown-container').boundingBox();
   assert.ok(arriba.y >= 0 && arriba.y + arriba.height <= sinSitio, 'el menú sin sitio debajo se sale de la pantalla');
@@ -4769,9 +4782,12 @@ test('el editor visual reparte el documento en páginas del tamaño del papel', 
     await page.locator('#markdown-panel').waitFor({ state: 'hidden' });
     await page.waitForFunction(() => document.querySelectorAll('.page-sheet').length > 1);
     /*
-      Y a que el reparto deje de moverse: las fórmulas y las imágenes cambian de
-      alto al terminar de pintarse, y cada cambio lo rehace un fotograma después.
+      Y a que el reparto deje de moverse: las fórmulas, las imágenes y los
+      diagramas cambian de alto al terminar de pintarse, y cada cambio lo rehace
+      un fotograma después. El manual lleva un diagrama, que se dibuja cuando
+      llega Mermaid.
     */
+    await page.evaluate(() => window.EdiMarkMermaid?.ready());
     await page.waitForFunction(() => new Promise((resolve) => {
       const foto = () => [...document.querySelectorAll('#html-output > [data-page-start]')]
         .map(bloque => bloque.style.getPropertyValue('--page-jump')).join('|');
