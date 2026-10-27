@@ -1067,6 +1067,12 @@ test('listas desplegables: recuerdan el tipo, teclado y menú móvil sin desbord
   await page.locator('#list-menu-btn').click();
   const narrowMenu = await page.locator('#list-options').boundingBox();
   const group = await page.locator('#list-dropdown-container').boundingBox();
+  const alMedir = await page.evaluate(() => ({
+    scrollY: window.scrollY,
+    alturas: ['header', '#desktop-release-banner', '#toolbar', '#mobile-format-toggle']
+      .map(sel => { const el = document.querySelector(sel); return el ? `${sel} ${Math.round(el.getBoundingClientRect().height)}${el.hidden ? ' oculto' : ''}` : `${sel} -`; })
+      .join(' | '),
+  }));
   assert.ok(narrowMenu.x >= 0 && narrowMenu.x + narrowMenu.width <= 320 && narrowMenu.y + narrowMenu.height <= 640);
   assert.ok(group.width >= 88 && group.x + group.width <= 320);
   await page.keyboard.press('Escape');
@@ -1088,7 +1094,7 @@ test('listas desplegables: recuerdan el tipo, teclado y menú móvil sin desbord
       alto: `${window.innerHeight}/${document.documentElement.scrollHeight}`,
     };
   });
-  assert.equal(salto.scrollY, 0, `la página salta al abrir el menú: ${JSON.stringify(salto)} (sin sitio: ${sinSitio}, grupo antes: ${JSON.stringify(group)})`);
+  assert.equal(salto.scrollY, 0, `la página salta al abrir el menú: ${JSON.stringify(salto)} (sin sitio: ${sinSitio}, grupo antes: ${JSON.stringify(group)}, al medirlo: ${JSON.stringify(alMedir)})`);
   const arriba = await page.locator('#list-options').boundingBox();
   const grupoArriba = await page.locator('#list-dropdown-container').boundingBox();
   assert.ok(arriba.y >= 0 && arriba.y + arriba.height <= sinSitio, 'el menú sin sitio debajo se sale de la pantalla');
@@ -8179,8 +8185,10 @@ test('Sirena edita un diagrama de la hoja y lo devuelve a su bloque', async (t) 
   await sirena.waitForFunction(() => document.body.classList.contains('otro-programa'), null, { timeout: 30000 });
   assert.equal(await sirena.locator('#editor').inputValue(), 'flowchart LR\n    A --> B');
   await sirena.locator('#editor').fill('flowchart LR\n    A --> B\n    B --> C');
+  // El botón cierra la ventana en el mismo clic: se pulsa desde la página,
+  // sin esperar a que Playwright confirme el clic en una ventana que ya no está.
   const cerrada = sirena.waitForEvent('close');
-  await sirena.locator('#exe-insertar').click();
+  await sirena.evaluate(() => document.getElementById('exe-insertar').click()).catch(() => {});
   await cerrada;
   await page.waitForFunction(() => markdownEditor.getValue().includes('B --> C'));
   assert.equal(await page.evaluate(() => markdownEditor.getValue()),
@@ -8191,7 +8199,7 @@ test('Sirena edita un diagrama de la hoja y lo devuelve a su bloque', async (t) 
   const [otra] = await Promise.all([context.waitForEvent('page'), page.locator('#open-sirena-btn').click()]);
   await otra.waitForFunction(() => document.body.classList.contains('otro-programa'), null, { timeout: 30000 });
   const cerradaOtra = otra.waitForEvent('close');
-  await otra.locator('#exe-cancelar').click();
+  await otra.evaluate(() => document.getElementById('exe-cancelar').click()).catch(() => {});
   await cerradaOtra;
   assert.equal(await page.evaluate(() => markdownEditor.getValue()), antes);
 });
