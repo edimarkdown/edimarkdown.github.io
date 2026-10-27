@@ -8121,7 +8121,7 @@ test('al exportar, cada diagrama es una imagen centrada y sin pie', async (t) =>
   assert.equal(new TextDecoder().decode(files['edimark-diagram-0.png'].slice(1, 4)), 'PNG');
 
   const html = new TextDecoder().decode((await runPandoc(`-f ${MARKDOWN_READER_NO_AUTO_IDS} -t html`, preparado.markdown, files)).bytes);
-  assert.match(html, /<div data-custom-style="Figure">\s*<p><img src="\/edimark-diagram-0\.png" style="width:\d+px"[^>]*alt="Diagrama"/);
+  assert.match(html, /<div data-custom-style="Figure">\s*<p><img src="\/edimark-diagram-0\.png" width="\d+"[^>]*alt="Diagrama"/);
   assert.doesNotMatch(html, /<figcaption|<pre/);
   const latex = new TextDecoder().decode((await runPandoc(`-f ${MARKDOWN_READER_NO_AUTO_IDS} -t latex`, preparado.markdown, files)).bytes);
   assert.match(latex, /\\begin\{center\}\s*\\includegraphics\[width=[\d.]+in[^\]]*\]\{\/edimark-diagram-0\.png\}~?\s*\\end\{center\}/);
