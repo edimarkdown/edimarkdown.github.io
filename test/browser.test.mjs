@@ -1067,16 +1067,13 @@ test('listas desplegables: recuerdan el tipo, teclado y menú móvil sin desbord
   await page.locator('#list-menu-btn').click();
   const narrowMenu = await page.locator('#list-options').boundingBox();
   const group = await page.locator('#list-dropdown-container').boundingBox();
-  const alMedir = await page.evaluate(() => ({
-    scrollY: window.scrollY,
-    alturas: ['header', '#desktop-release-banner', '#toolbar', '#mobile-format-toggle']
-      .map(sel => { const el = document.querySelector(sel); return el ? `${sel} ${Math.round(el.getBoundingClientRect().height)}${el.hidden ? ' oculto' : ''}` : `${sel} -`; })
-      .join(' | '),
-  }));
+  // Elegir una opción devuelve el foco al editor y la página se desplaza para
+  // enseñarlo: la posición del grupo se cuenta desde arriba de la página.
+  const desplazada = await page.evaluate(() => window.scrollY);
   assert.ok(narrowMenu.x >= 0 && narrowMenu.x + narrowMenu.width <= 320 && narrowMenu.y + narrowMenu.height <= 640);
   assert.ok(group.width >= 88 && group.x + group.width <= 320);
   await page.keyboard.press('Escape');
-  const sinSitio = Math.ceil(group.y + group.height + 60);
+  const sinSitio = Math.ceil(group.y + desplazada + group.height + 60);
   await page.setViewportSize({width:320,height:sinSitio});
   // Sin desplazar la página, como quien toca un botón que ya ve abajo del todo.
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -1094,7 +1091,7 @@ test('listas desplegables: recuerdan el tipo, teclado y menú móvil sin desbord
       alto: `${window.innerHeight}/${document.documentElement.scrollHeight}`,
     };
   });
-  assert.equal(salto.scrollY, 0, `la página salta al abrir el menú: ${JSON.stringify(salto)} (sin sitio: ${sinSitio}, grupo antes: ${JSON.stringify(group)}, al medirlo: ${JSON.stringify(alMedir)})`);
+  assert.equal(salto.scrollY, 0, `la página salta al abrir el menú: ${JSON.stringify(salto)} (sin sitio: ${sinSitio}, grupo antes: ${JSON.stringify(group)}, página desplazada: ${desplazada})`);
   const arriba = await page.locator('#list-options').boundingBox();
   const grupoArriba = await page.locator('#list-dropdown-container').boundingBox();
   assert.ok(arriba.y >= 0 && arriba.y + arriba.height <= sinSitio, 'el menú sin sitio debajo se sale de la pantalla');
