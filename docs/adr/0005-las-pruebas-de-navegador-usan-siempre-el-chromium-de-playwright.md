@@ -55,9 +55,10 @@ ejecutar `npx playwright install chromium` en el equipo local.
 
 ## Riesgos y limitaciones
 
-No se ha averiguado qué cambio de Chromium produce la caída. Las pasadas lentas
-de GitHub dan además tiempos agotados sueltos (`page.goto` a los 30 s), que no
-tienen que ver con esto.
+No se ha averiguado qué cambio de Chromium produce la caída. Aparte, cada
+prueba carga la aplicación desde cero y pide sus bibliotecas a jsDelivr y
+cdnjs: cuando cdnjs deja colgada una petición, `page.goto` agota sus 30 s. Pasa
+con los dos Chromium y no tiene que ver con esta decisión.
 
 ## Validación
 
@@ -70,6 +71,7 @@ El 28-10-2026, en local, con el snapshot 1706520 de `chromium-browser-snapshots`
   mismo Chromium manejado por CDP sin Playwright, ni con Chromium 155, el 156 de
   Debian (156.0.8078.47) o el de Playwright (151.0.7922.34).
 
-En GitHub, 14 pasadas con el Chromium de Playwright y ninguna caída: diez
-pasaron enteras, dos fallaron por tiempo agotado y dos se cortaron a los 20
-minutos, en una tanda de máquinas muy lentas.
+En GitHub, el mismo día, 24 pasadas con el Chromium de Playwright y ninguna
+caída; tres de ellas en la imagen 20261025.353.1, donde el Chromium del sistema
+volvió a caer en la única pasada que le tocó. Las que fallaron lo hicieron por
+tiempos agotados al cargar de cdnjs o por máquinas muy lentas.
