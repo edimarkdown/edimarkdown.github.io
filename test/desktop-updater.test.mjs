@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import updater from '../desktop-updater.js';
 
@@ -90,4 +91,17 @@ test('descarga por trozos e informa del progreso', async () => {
   );
   assert.deepEqual([...bytes], [1, 2, 3, 4, 5]);
   assert.deepEqual(progress, [0.4, 1]);
+});
+
+/*
+  La versión se escribe en cuatro sitios. Los instaladores toman su número de
+  tauri.conf.json: en la 3.5.0 se quedó en 3.4.0 y salieron con el número
+  anterior, así que el actualizador los habría vuelto a ofrecer sin fin.
+*/
+test('la versión coincide en la web, en npm, en Tauri y en Rust', () => {
+  const leer = ruta => readFileSync(new URL(`../${ruta}`, import.meta.url), 'utf8');
+  const npm = JSON.parse(leer('package.json')).version;
+  assert.equal(JSON.parse(leer('src-tauri/tauri.conf.json')).version, npm);
+  assert.equal(leer('src-tauri/Cargo.toml').match(/^version = "([^"]+)"/m)[1], npm);
+  assert.equal(leer('script.js').match(/^const APP_VERSION = '([^']+)';/m)[1], npm);
 });
