@@ -58,7 +58,8 @@ ejecutar `npx playwright install chromium` en el equipo local.
 No se ha averiguado qué cambio de Chromium produce la caída. Aparte, cada
 prueba carga la aplicación desde cero y pide sus bibliotecas a jsDelivr y
 cdnjs: cuando cdnjs deja colgada una petición, `page.goto` agota sus 30 s. Pasa
-con los dos Chromium y no tiene que ver con esta decisión.
+con los dos Chromium, no tiene que ver con esta decisión y se resuelve en el
+[ADR 0006](0006-las-pruebas-de-navegador-descargan-una-vez-por-tanda-lo-que-viene-de-las-cdn.md).
 
 ## Validación
 

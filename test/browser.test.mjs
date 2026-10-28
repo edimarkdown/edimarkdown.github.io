@@ -107,6 +107,57 @@ function permisosDelNavegador(permissions) {
   return admitidos.length ? admitidos : null;
 }
 
+/*
+  Las bibliotecas de jsDelivr y cdnjs se descargan una sola vez por tanda y se
+  sirven a todas las páginas desde esa copia. Cada prueba carga la aplicación
+  desde cero, y con unas 4.000 peticiones a las CDN por tanda alguna se quedaba
+  colgada y la carga agotaba sus 30 s (ADR 0006). Lo que no se puede descargar,
+  o no responde con un 200, sigue su curso normal por la red, como antes.
+*/
+const CDN = /^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)\//;
+const copiasCdn = new Map();
+
+async function descargarDeCdn(url) {
+  let ultimoError;
+  for (let intento = 0; intento < 3; intento += 1) {
+    try {
+      const respuesta = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!respuesta.ok) return null;
+      return {
+        contentType: respuesta.headers.get('content-type') || undefined,
+        body: Buffer.from(await respuesta.arrayBuffer()),
+      };
+    } catch (error) {
+      ultimoError = error;
+    }
+  }
+  throw ultimoError;
+}
+
+async function servirCdnDesdeCopia(context) {
+  await context.route(CDN, async (route) => {
+    const url = route.request().url();
+    if (route.request().method() !== 'GET') return route.fallback();
+    if (!copiasCdn.has(url)) copiasCdn.set(url, descargarDeCdn(url));
+    let copia;
+    try {
+      copia = await copiasCdn.get(url);
+    } catch (_error) {
+      copiasCdn.delete(url);
+      return route.fallback();
+    }
+    if (!copia) return route.fallback();
+    // Las etiquetas llevan crossorigin e integrity: la copia es byte a byte la
+    // de la CDN y tiene que poder leerse desde otro origen.
+    await route.fulfill({
+      status: 200,
+      contentType: copia.contentType,
+      headers: { 'access-control-allow-origin': '*' },
+      body: copia.body,
+    });
+  });
+}
+
 async function openApp({ locale = 'es-ES', colorScheme, initStorage, permissions, userAgent } = {}) {
   const permisos = permisosDelNavegador(permissions);
   const context = await browser.newContext({
@@ -122,6 +173,7 @@ async function openApp({ locale = 'es-ES', colorScheme, initStorage, permissions
   if (initStorage) {
     await context.addInitScript(initStorage);
   }
+  await servirCdnDesdeCopia(context);
   await context.route(/pandoc\.b64(?:\.gz)?(?:\?.*)?$/, route => (
     route.fulfill({ status: 200, contentType: 'text/plain', body: '' })
   ));
@@ -779,6 +831,7 @@ test('la web solo pide sus archivos y las bibliotecas al abrirse', {
 }, async (t) => {
   const context = await browser.newContext();
   t.after(() => context.close());
+  await servirCdnDesdeCopia(context);
 
   const host = 'https://edimarkweb.test';
   await context.route(`${host}/**`, async (route) => {
@@ -1540,6 +1593,7 @@ test('los botones de índice envuelven la selección en los dos paneles', async 
 test('la exportación descarga las imágenes de rutas relativas', async (t) => {
   const context = await browser.newContext({ locale: 'es-ES' });
   t.after(() => context.close());
+  await servirCdnDesdeCopia(context);
   await context.route(/pandoc\.b64(?:\.gz)?(?:\?.*)?$/, route => (
     route.fulfill({ status: 200, contentType: 'text/plain', body: '' })
   ));
@@ -1836,6 +1890,7 @@ test('buscar y reemplazar acierta con una imagen base64 plegada delante', async 
 async function exportarConImagen(t, { bytes, nombre }) {
   const context = await browser.newContext({ locale: 'es-ES' });
   t.after(() => context.close());
+  await servirCdnDesdeCopia(context);
   await context.route(/pandoc\.b64(?:\.gz)?(?:\?.*)?$/, route => (
     route.fulfill({ status: 200, contentType: 'text/plain', body: '' })
   ));

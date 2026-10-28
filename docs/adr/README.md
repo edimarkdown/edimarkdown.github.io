@@ -10,6 +10,7 @@ las alternativas descartadas y sus consecuencias.
 | [3](0003-las-columnas-de-un-div-salen-en-docx-y-odt-como-secciones.md) | Las columnas de un div salen en DOCX y ODT como secciones | aceptado |
 | [4](0004-los-diagramas-mermaid-se-dibujan-en-la-hoja-salen-como-imagen-y-se-editan-con-sirena.md) | Los diagramas Mermaid se dibujan en la hoja, salen como imagen y se editan con Sirena | aceptado |
 | [5](0005-las-pruebas-de-navegador-usan-siempre-el-chromium-de-playwright.md) | Las pruebas de navegador usan siempre el Chromium de Playwright | aceptado |
+| [6](0006-las-pruebas-de-navegador-descargan-una-vez-por-tanda-lo-que-viene-de-las-cdn.md) | Las pruebas de navegador descargan una vez por tanda lo que viene de las CDN | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número
