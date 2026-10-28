@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createServer } from 'node:http';
-import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve, sep } from 'node:path';
@@ -157,10 +156,10 @@ before(async () => {
   appUrl = `http://127.0.0.1:${address.port}/index.html`;
   const browserName = process.env.BROWSER === 'firefox' ? 'firefox' : 'chromium';
   const browserType = browserName === 'firefox' ? firefox : chromium;
-  const systemChromium = browserName === 'chromium' && existsSync('/usr/bin/chromium')
-    ? '/usr/bin/chromium'
-    : undefined;
-  browser = await browserType.launch({ executablePath: systemChromium, headless: true });
+  // El navegador es siempre el de Playwright, el mismo en local y en GitHub
+  // (ADR 0005): el /usr/bin/chromium de las máquinas de GitHub cambia con cada
+  // imagen, y su 156.0.8078.0 cerraba la hoja al abrir Sirena.
+  browser = await browserType.launch({ headless: true });
 });
 
 after(async () => {

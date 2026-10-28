@@ -9,6 +9,7 @@ las alternativas descartadas y sus consecuencias.
 | [2](0002-la-hoja-reparte-columnas-y-tablas-por-paginas-sin-anadir-nada-al-texto.md) | La hoja reparte columnas y tablas por páginas sin añadir nada al texto | aceptado |
 | [3](0003-las-columnas-de-un-div-salen-en-docx-y-odt-como-secciones.md) | Las columnas de un div salen en DOCX y ODT como secciones | aceptado |
 | [4](0004-los-diagramas-mermaid-se-dibujan-en-la-hoja-salen-como-imagen-y-se-editan-con-sirena.md) | Los diagramas Mermaid se dibujan en la hoja, salen como imagen y se editan con Sirena | aceptado |
+| [5](0005-las-pruebas-de-navegador-usan-siempre-el-chromium-de-playwright.md) | Las pruebas de navegador usan siempre el Chromium de Playwright | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número
