@@ -131,3 +131,8 @@ Firefox y WebKit:
 
 En WebKit, la imagen se guardó como bytes, porque en sus contextos privados no
 admite Blob en IndexedDB.
+
+Ya publicadas las dos direcciones, el mismo 28-10-2026, en Chromium y Firefox:
+sin documentos, `edimarkweb.github.io` salta a la nueva; con un documento y su
+imagen guardados en la antigua, como los dejaba la 3.4.0, el botón los lleva,
+la imagen se ve en la vista previa de la nueva y la visita siguiente ya salta.
