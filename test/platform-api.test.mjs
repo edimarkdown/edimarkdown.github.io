@@ -348,8 +348,8 @@ test('abre los enlaces externos con el navegador del sistema en Tauri', async ()
     },
   });
 
-  await platform.openExternalUrl('https://edimarkweb.github.io/');
-  assert.equal(openedUrl, 'https://edimarkweb.github.io/');
+  await platform.openExternalUrl('https://edimarkdown.github.io/');
+  assert.equal(openedUrl, 'https://edimarkdown.github.io/');
   await assert.rejects(() => platform.openExternalUrl('file:///etc/passwd'));
 });
 
@@ -491,8 +491,8 @@ test('entrega el fetch nativo para las actualizaciones y nada en el navegador', 
 
   const fetchImpl = platform.updateFetch();
   assert.equal(typeof fetchImpl, 'function');
-  assert.deepEqual(await fetchImpl('https://github.com/edimarkweb/x.deb', { method: 'GET' }), { ok: true });
-  assert.deepEqual(peticiones, [['https://github.com/edimarkweb/x.deb', { method: 'GET' }]]);
+  assert.deepEqual(await fetchImpl('https://github.com/edimarkdown/x.deb', { method: 'GET' }), { ok: true });
+  assert.deepEqual(peticiones, [['https://github.com/edimarkdown/x.deb', { method: 'GET' }]]);
 
   const navegador = createPlatformApi({ Blob });
   assert.equal(navegador.updateFetch(), null);

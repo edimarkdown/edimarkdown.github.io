@@ -1,7 +1,7 @@
 {
-  "name": "edimarkweb.github.io",
-  "version": "3.4.0",
-  "description": "> **Nota**   > Este repositorio ha sido trasladado a [edimarkweb/edimarkweb.github.io](https://github.com/edimarkweb/edimarkweb.github.io). La aplicación se publica ahora en [https://edimarkweb.github.io/](https://edimarkweb.github.io/).",
+  "name": "edimarkdown.github.io",
+  "version": "3.5.0",
+  "description": "Editor de Markdown con LaTeX que exporta a Word, LibreOffice, PDF, EPUB y otros formatos.",
   "main": "i18n.js",
   "scripts": {
     "build:css": "tailwindcss -i ./tailwind.css -o ./tailwind.build.css --minify",
@@ -24,15 +24,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/edimarkweb/edimarkweb.github.io.git"
+    "url": "git+https://github.com/edimarkdown/edimarkdown.github.io.git"
   },
   "keywords": [],
   "author": "Juan José de Haro <jjdeharo@gmail.com>",
   "license": "AGPL-3.0-only",
   "bugs": {
-    "url": "https://github.com/edimarkweb/edimarkweb.github.io/issues"
+    "url": "https://github.com/edimarkdown/edimarkdown.github.io/issues"
   },
-  "homepage": "https://github.com/edimarkweb/edimarkweb.github.io#readme",
+  "homepage": "https://github.com/edimarkdown/edimarkdown.github.io#readme",
   "devDependencies": {
     "@bjorn3/browser_wasi_shim": "^0.4.2",
     "@playwright/test": "^1.62.1",

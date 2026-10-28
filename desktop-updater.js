@@ -13,8 +13,8 @@
     root.EdiMarkUpdater = exported;
   }
 }(typeof window !== 'undefined' ? window : globalThis, function desktopUpdaterFactory() {
-  const RELEASES_API_URL = 'https://api.github.com/repos/edimarkweb/edimarkweb.github.io/releases/latest';
-  const RELEASES_PAGE_URL = 'https://github.com/edimarkweb/edimarkweb.github.io/releases/latest';
+  const RELEASES_API_URL = 'https://api.github.com/repos/edimarkdown/edimarkdown.github.io/releases/latest';
+  const RELEASES_PAGE_URL = 'https://github.com/edimarkdown/edimarkdown.github.io/releases/latest';
 
   // Cada plataforma ordena sus instaladores de más a menos automático: el
   // paquete nativo se instala solo y la AppImage se limita a reemplazarse.

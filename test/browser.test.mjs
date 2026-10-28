@@ -232,7 +232,7 @@ test('un idioma no disponible recurre al español', async (t) => {
   assert.match(await page.locator('#desktop-release-banner').innerText(), new RegExp(`v${packageVersion.replaceAll('.', '\\.')}`));
   assert.equal(
     await page.locator('#desktop-banner-download-link').getAttribute('href'),
-    'https://github.com/edimarkweb/edimarkweb.github.io/releases/latest',
+    'https://github.com/edimarkdown/edimarkdown.github.io/releases/latest',
   );
 
   await page.locator('#help-menu-btn').click();
@@ -240,11 +240,11 @@ test('un idioma no disponible recurre al español', async (t) => {
   await page.locator('#about-modal-overlay').waitFor({ state: 'visible' });
   assert.equal(
     await page.locator('#about-web-link').getAttribute('href'),
-    'https://edimarkweb.github.io/',
+    'https://edimarkdown.github.io/',
   );
   assert.equal(
     await page.locator('#about-desktop-link').getAttribute('href'),
-    'https://github.com/edimarkweb/edimarkweb.github.io/releases/latest',
+    'https://github.com/edimarkdown/edimarkdown.github.io/releases/latest',
   );
   await page.locator('#about-close-btn').click();
   await page.locator('#desktop-banner-never-show').check();
@@ -299,13 +299,13 @@ test('la aplicación nativa aprovecha toda la ventana y comparte el cuadro Acerc
   assert.equal(await page.locator('#about-modal-overlay [data-app-version]').textContent(), packageVersion);
   assert.match(await page.locator('#about-modal-overlay').innerText(), /Juan José de Haro/);
   assert.match(await page.locator('#about-modal-overlay').innerText(), /GNU AGPL v3/);
-  assert.equal(await page.locator('#about-web-link').getAttribute('href'), 'https://edimarkweb.github.io/');
+  assert.equal(await page.locator('#about-web-link').getAttribute('href'), 'https://edimarkdown.github.io/');
   assert.equal(
     await page.locator('#about-desktop-link').getAttribute('href'),
-    'https://github.com/edimarkweb/edimarkweb.github.io/releases/latest',
+    'https://github.com/edimarkdown/edimarkdown.github.io/releases/latest',
   );
   await page.locator('#about-web-link').click();
-  await page.waitForFunction(() => window.__openedExternalUrl === 'https://edimarkweb.github.io/');
+  await page.waitForFunction(() => window.__openedExternalUrl === 'https://edimarkdown.github.io/');
   await page.locator('#about-close-btn').click();
   await page.locator('#about-modal-overlay').waitFor({ state: 'hidden' });
 
@@ -7161,7 +7161,7 @@ test('La ayuda lleva al artículo del blog', async (t) => {
     acercaDe: document.getElementById('about-article-link')?.getAttribute('href'),
   }));
   // El manual cuenta cómo se hace cada cosa; el artículo, para qué sirve.
-  const articulo = 'https://educacion.bilateria.org/edimarkweb-escribir-en-markdown-y-entregar-en-cualquier-formato';
+  const articulo = 'https://educacion.bilateria.org/edimarkdown-escribir-en-markdown-y-convertir-a-cualquier-formato';
   assert.equal(enlaces.menu, articulo);
   assert.equal(enlaces.menuDestino, '_blank');
   assert.equal(enlaces.acercaDe, articulo);
@@ -8253,4 +8253,80 @@ test('Sirena edita un diagrama de la hoja y lo devuelve a su bloque', async (t) 
   await otra.evaluate(() => document.getElementById('exe-cancelar').click()).catch(() => {});
   await cerradaOtra;
   assert.equal(await page.evaluate(() => markdownEditor.getValue()), antes);
+});
+
+/*
+  La web vivía en edimarkweb.github.io hasta la 3.4.0, y sus documentos se
+  quedaron en el almacenamiento del navegador de esa dirección. La página que
+  quedó allí abre `mudanza.html` y le pasa por postMessage la lista, los textos,
+  las preferencias y las imágenes. Aquí la dirección anterior es una página
+  mínima que habla igual que aquella.
+*/
+test('mudanza.html recibe los documentos de la dirección anterior', {
+  skip: Boolean(process.env.EDIMARK_STATIC_ROOT),
+}, async (t) => {
+  const context = await browser.newContext();
+  t.after(() => context.close());
+  await servirCdnDesdeCopia(context);
+  await context.route(/pandoc\.b64(?:\.gz)?(?:\?.*)?$/, route => (
+    route.fulfill({ status: 200, contentType: 'text/plain', body: '' })
+  ));
+  const nueva = 'https://edimarkdown.github.io';
+  const anterior = 'https://edimarkweb.github.io';
+  await context.route(`${nueva}/**`, async (route) => {
+    const ruta = new URL(route.request().url()).pathname.replace(/\/$/, '/index.html');
+    const respuesta = await route.fetch({ url: `${appUrl.replace('/index.html', '')}${ruta}` });
+    await route.fulfill({ response: respuesta });
+  });
+  await context.route(`${anterior}/**`, route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: `<button id="llevar">Llevar</button><script>
+      document.getElementById('llevar').onclick = () => {
+        const ventana = window.open('${nueva}/mudanza.html', '_blank');
+        addEventListener('message', (event) => {
+          if (event.origin !== '${nueva}' || event.source !== ventana) return;
+          if (event.data.tipo === 'edimarkdown-mudanza-lista') ventana.postMessage({
+            tipo: 'edimarkdown-mudanza',
+            almacen: {
+              'edimarkweb-docslist': JSON.stringify([{ id: 'viejo', name: 'Viejo.md' }]),
+              'edimarkweb-autosave-viejo': '# Viejo\\n\\n![](img/a.png)\\n',
+              'edimarkweb-active-doc': 'viejo',
+              'edimarkweb-theme': 'dark',
+              'edimarkweb-mudanza-hecha': 'no se copia',
+              'otra-cosa': 'tampoco',
+            },
+            imagenes: [{ key: 'viejo\\u0000img/a.png', docId: 'viejo', relativePath: 'img/a.png', file: new Blob(['png'], { type: 'image/png' }) },
+                       { key: 'ajeno\\u0000b.png', docId: 'ajeno', relativePath: 'b.png', file: new Blob(['x']) }],
+            destino: '/',
+          }, '${nueva}');
+          if (event.data.tipo === 'edimarkdown-mudanza-hecha') window.__hecha = true;
+        });
+      };
+    </script>`,
+  }));
+
+  const page = await context.newPage();
+  await page.goto(`${anterior}/`);
+  const [recibe] = await Promise.all([context.waitForEvent('page'), page.locator('#llevar').click()]);
+  await page.waitForFunction(() => window.__hecha === true);
+  await recibe.waitForURL(`${nueva}/`);
+  await recibe.waitForFunction(() => window.__edimarkReady === true);
+
+  assert.ok((await recibe.locator('.tab-name').allTextContents()).includes('Viejo.md'));
+  const guardado = await recibe.evaluate(() => ({
+    texto: localStorage.getItem('edimarkweb-autosave-viejo'),
+    tema: localStorage.getItem('edimarkweb-theme'),
+    hecha: localStorage.getItem('edimarkweb-mudanza-hecha'),
+    otra: localStorage.getItem('otra-cosa'),
+  }));
+  assert.deepEqual(guardado, { texto: '# Viejo\n\n![](img/a.png)\n', tema: 'dark', hecha: null, otra: null });
+  const imagenes = await recibe.evaluate(() => new Promise((resolve) => {
+    const peticion = indexedDB.open('edimarkweb-assets', 1);
+    peticion.onsuccess = () => {
+      const lectura = peticion.result.transaction('document-assets').objectStore('document-assets').getAll();
+      lectura.onsuccess = () => resolve(lectura.result.map(registro => `${registro.docId}:${registro.relativePath}`));
+    };
+  }));
+  assert.deepEqual(imagenes, ['viejo:img/a.png']);
 });

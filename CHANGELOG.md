@@ -1,8 +1,13 @@
 # Historial de cambios
 
-Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más reciente a la más antigua. Cada versión corresponde a una etiqueta `vX.Y.Z` del repositorio; los instaladores de escritorio están en las [publicaciones de GitHub](https://github.com/edimarkweb/edimarkweb.github.io/releases).
+Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más reciente a la más antigua. Cada versión corresponde a una etiqueta `vX.Y.Z` del repositorio; los instaladores de escritorio están en las [publicaciones de GitHub](https://github.com/edimarkdown/edimarkdown.github.io/releases).
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
+
+## [3.5.0] - 2026-10-28
+
+- La web se ha mudado a [edimarkdown.github.io](https://edimarkdown.github.io/), con el nombre de la aplicación. La dirección anterior, `edimarkweb.github.io`, lleva a la nueva. Si el navegador guarda documentos de allí, ofrece llevárselos con un clic, con sus imágenes y preferencias; si no se pueden llevar, ofrece descargarlos en un ZIP.
+- El código, las incidencias y los instaladores están ahora en [github.com/edimarkdown/edimarkdown.github.io](https://github.com/edimarkdown/edimarkdown.github.io). La aplicación de escritorio busca allí las actualizaciones, y conserva sus documentos y ajustes.
 
 ## [3.4.0] - 2026-10-27
 

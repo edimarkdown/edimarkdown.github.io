@@ -10,7 +10,7 @@ Ez duzu Markdown jakin beharrik. Idatzi ezkerreko panelean eta ikusiko duzu doku
 
 Amaitutakoan: **Gorde** (`Ctrl+S`) `.md` fitxategi bat uzten du, testu arrunta, edonon irekitzen dena, eta **Esportatu** aukerak Word, PDF edo eman behar duzun formatua sortzen du.
 
-Eskuliburu hau beti dago eskura **Laguntza** atalean edo `F1`ekin. Bada [blogeko artikulu](https://educacion.bilateria.org/edimarkweb-escribir-en-markdown-y-entregar-en-cualquier-formato) bat ere (gaztelaniaz) EdiMarkdown gelan zertarako den azaltzen duena, adibide eta pantaila-argazkiekin.
+Eskuliburu hau beti dago eskura **Laguntza** atalean edo `F1`ekin. Bada [blogeko artikulu](https://educacion.bilateria.org/edimarkdown-escribir-en-markdown-y-convertir-a-cualquier-formato) bat ere (gaztelaniaz) EdiMarkdown gelan zertarako den azaltzen duena, adibide eta pantaila-argazkiekin.
 
 ---
 
@@ -163,7 +163,7 @@ Kopiatzeko botoiak, Esportatu-ren ondoan, edukia arbelera bidaltzen du Markdown,
 
 ## Mahaigaineko aplikazioa
 
-Aplikazio bera da, Linux, Windows eta macOSen instalatuta. Instalatzaileak [deskarga-orrian](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest) daude.
+Aplikazio bera da, Linux, Windows eta macOSen instalatuta. Instalatzaileak [deskarga-orrian](https://github.com/edimarkdown/edimarkdown.github.io/releases/latest) daude.
 
 Nabigatzailearen aurrean hau gehitzen du: klik bikoitza `.md` fitxategiak irekitzeko, zuzeneko gordetzea deskargen karpetatik pasatu gabe, fitxa bakoitzaren fitxategia non dagoen, sagua gainetik pasatzean edo eskuineko botoiaren menuan (sakatuz gero, bere karpeta irekitzen da), sistemaren zuzentzaile ortografikoa eta konexiorik gabe funtzionatzea (Pandoc, EdiCuaTeX, Sirena eta Mermaid barne datoz). Abiaraztean bertsio berririk dagoen egiaztatzen du eta **Deskargatu eta instalatu** eskaintzen du.
 
@@ -237,4 +237,4 @@ Hedapenak LaTeX formulak, `[^oharra]` oin-oharrak, `[@giltza]` bibliografia-aipu
 
 ## Lizentzia eta ekarpenak
 
-EdiMarkdown [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html) lizentziapeko software librea da: zure gelan erabili, egokitu eta zure zerbitzarietan zabaldu dezakezu, edozein hobekuntza lizentzia berarekin partekatzen baduzu. Arazoren bat aurkitzen baduzu edo aldaketak proposatu nahi badituzu, ireki gorabehera bat [GitHub](https://github.com/edimarkweb/edimarkweb.github.io/issues) atalean edo bidali pull request bat.
+EdiMarkdown [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html) lizentziapeko software librea da: zure gelan erabili, egokitu eta zure zerbitzarietan zabaldu dezakezu, edozein hobekuntza lizentzia berarekin partekatzen baduzu. Arazoren bat aurkitzen baduzu edo aldaketak proposatu nahi badituzu, ireki gorabehera bat [GitHub](https://github.com/edimarkdown/edimarkdown.github.io/issues) atalean edo bidali pull request bat.

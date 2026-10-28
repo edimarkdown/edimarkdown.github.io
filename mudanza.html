@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex">
+  <title>EdiMarkdown</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <style>
+    :root { --fondo: #f1f5f9; --texto: #0f172a; --aviso: #b91c1c; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --fondo: #020617; --texto: #e2e8f0; --aviso: #f87171; }
+    }
+    :root[data-theme="dark"] { --fondo: #020617; --texto: #e2e8f0; --aviso: #f87171; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      text-align: center;
+    }
+    .aviso { color: var(--aviso); max-width: 30rem; }
+  </style>
+</head>
+<body>
+  <main aria-live="polite">
+    <p id="estado"></p>
+  </main>
+  <script>
+    /*
+      Recibe los documentos que la web guardaba en la dirección anterior,
+      edimarkweb.github.io (hasta la versión 3.4.0). La página de mudanza que
+      quedó allí abre esta y se los pasa por postMessage: el almacenamiento del
+      navegador va atado a cada dirección y no hay otra forma de cruzarlo.
+
+      Lo que ya hubiera aquí manda: los documentos traídos se añaden detrás y
+      una preferencia solo se copia si aquí no estaba puesta. Si algo no se
+      puede guardar, se deshace lo escrito y los documentos siguen en la
+      dirección anterior, que ofrece descargarlos.
+
+      Los nombres de las claves siguen siendo los de siempre (`edimarkweb-…`):
+      son internos, y la aplicación de escritorio también los usa.
+    */
+    (function () {
+      var ANTERIOR = 'https://edimarkweb.github.io';
+      var LISTA = 'edimarkweb-docslist';
+      var ACTIVA = 'edimarkweb-active-doc';
+      var TEXTO = 'edimarkweb-autosave-';
+      var NO_SE_COPIAN = [LISTA, ACTIVA, 'edimarkweb-docslist-corrupt-backup', 'edimarkweb-mudanza-hecha'];
+      var textos = {
+        es: { recibiendo: 'Recibiendo tus documentos…', fallo: 'No se han podido guardar aquí. Siguen en la pestaña anterior, desde donde puedes descargarlos.' },
+        ca: { recibiendo: 'S’estan rebent els teus documents…', fallo: 'No s’han pogut guardar aquí. Continuen a la pestanya anterior, des d’on els pots descarregar.' },
+        gl: { recibiendo: 'Recibindo os teus documentos…', fallo: 'Non se puideron gardar aquí. Seguen na lapela anterior, desde onde podes descargalos.' },
+        eu: { recibiendo: 'Zure dokumentuak jasotzen…', fallo: 'Ezin izan dira hemen gorde. Aurreko fitxan jarraitzen dute, eta hortik deskarga ditzakezu.' },
+        en: { recibiendo: 'Receiving your documents…', fallo: 'They could not be saved here. They are still in the previous tab, where you can download them.' },
+      };
+      var t = textos[idioma()];
+      var estado = document.getElementById('estado');
+      estado.textContent = t.recibiendo;
+      try {
+        var tema = localStorage.getItem('edimarkweb-theme');
+        if (tema === 'dark' || tema === 'light') document.documentElement.dataset.theme = tema;
+      } catch (error) { /* sin almacenamiento */ }
+
+      var origen = window.opener;
+      if (!origen) {
+        location.replace('./');
+        return;
+      }
+      var plazo = setTimeout(function () { location.replace('./'); }, 60000);
+
+      window.addEventListener('message', function (event) {
+        if (event.origin !== ANTERIOR || event.source !== origen) return;
+        var datos = event.data;
+        if (!datos || datos.tipo !== 'edimarkdown-mudanza') return;
+        clearTimeout(plazo);
+        guardar(datos).then(function () {
+          origen.postMessage({ tipo: 'edimarkdown-mudanza-hecha' }, ANTERIOR);
+          location.replace(destinoSeguro(datos.destino));
+        }, function (error) {
+          console.warn('No se pudo completar la mudanza:', error);
+          origen.postMessage({ tipo: 'edimarkdown-mudanza-fallida', motivo: String((error && error.name) || error) }, ANTERIOR);
+          estado.textContent = t.fallo;
+          estado.className = 'aviso';
+        });
+      });
+      origen.postMessage({ tipo: 'edimarkdown-mudanza-lista' }, ANTERIOR);
+
+      function guardar(datos) {
+        var almacen = datos.almacen && typeof datos.almacen === 'object' ? datos.almacen : {};
+        var actuales = lista(localStorage.getItem(LISTA));
+        var ids = {};
+        var hayManual = false;
+        actuales.forEach(function (doc) { ids[doc.id] = true; if (doc.isManual) hayManual = true; });
+        var nuevos = lista(almacen[LISTA]).filter(function (doc) {
+          return !ids[doc.id] && !(doc.isManual && hayManual);
+        });
+        var idsNuevos = {};
+        nuevos.forEach(function (doc) { idsNuevos[doc.id] = true; });
+        var imagenes = (Array.isArray(datos.imagenes) ? datos.imagenes : []).filter(function (registro) {
+          return registro && typeof registro.key === 'string' && idsNuevos[registro.docId];
+        });
+
+        return guardarImagenes(imagenes).then(function () {
+          var escritas = [];
+          try {
+            nuevos.forEach(function (doc) {
+              var valor = almacen[TEXTO + doc.id];
+              if (typeof valor !== 'string') return;
+              localStorage.setItem(TEXTO + doc.id, valor);
+              escritas.push(TEXTO + doc.id);
+            });
+            Object.keys(almacen).forEach(function (clave) {
+              var propia = clave === 'language' || clave.indexOf('edimarkweb-') === 0;
+              if (!propia || clave.indexOf(TEXTO) === 0 || NO_SE_COPIAN.indexOf(clave) !== -1) return;
+              if (typeof almacen[clave] !== 'string' || localStorage.getItem(clave) !== null) return;
+              localStorage.setItem(clave, almacen[clave]);
+              escritas.push(clave);
+            });
+            if (!actuales.length && idsNuevos[almacen[ACTIVA]]) {
+              localStorage.setItem(ACTIVA, almacen[ACTIVA]);
+              escritas.push(ACTIVA);
+            }
+            // La lista, al final: hasta aquí, nada de lo escrito se ve.
+            if (nuevos.length) localStorage.setItem(LISTA, JSON.stringify(actuales.concat(nuevos)));
+          } catch (error) {
+            escritas.forEach(function (clave) { localStorage.removeItem(clave); });
+            return borrarImagenes(imagenes).then(function () { throw error; });
+          }
+        });
+      }
+
+      function lista(texto) {
+        try {
+          var leida = JSON.parse(texto || '[]');
+          return Array.isArray(leida) ? leida.filter(function (doc) {
+            return doc && typeof doc.id === 'string' && doc.id && typeof doc.name === 'string';
+          }) : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      // El mismo esquema con que la aplicación crea la base (script.js).
+      function abrirImagenes() {
+        return new Promise(function (resolve, reject) {
+          var peticion = indexedDB.open('edimarkweb-assets', 1);
+          peticion.onupgradeneeded = function () {
+            var base = peticion.result;
+            if (base.objectStoreNames.contains('document-assets')) return;
+            base.createObjectStore('document-assets', { keyPath: 'key' }).createIndex('docId', 'docId', { unique: false });
+          };
+          peticion.onsuccess = function () { resolve(peticion.result); };
+          peticion.onerror = function () { reject(peticion.error); };
+          peticion.onblocked = function () { reject(new Error('asset_database_blocked')); };
+        });
+      }
+
+      function conImagenes(imagenes, accion) {
+        if (!imagenes.length) return Promise.resolve();
+        return abrirImagenes().then(function (base) {
+          return new Promise(function (resolve, reject) {
+            var transaccion = base.transaction('document-assets', 'readwrite');
+            var almacen = transaccion.objectStore('document-assets');
+            imagenes.forEach(function (registro) { accion(almacen, registro); });
+            transaccion.oncomplete = function () { base.close(); resolve(); };
+            transaccion.onerror = transaccion.onabort = function () {
+              base.close();
+              reject(transaccion.error || new Error('asset_database_write_failed'));
+            };
+          });
+        });
+      }
+
+      function guardarImagenes(imagenes) {
+        return conImagenes(imagenes, function (almacen, registro) { almacen.put(registro); });
+      }
+
+      function borrarImagenes(imagenes) {
+        return conImagenes(imagenes, function (almacen, registro) { almacen.delete(registro.key); })
+          .catch(function () { /* lo que quede sin dueño lo purga la aplicación al arrancar */ });
+      }
+
+      // Solo rutas de esta misma web; cualquier otra cosa, a la portada.
+      function destinoSeguro(ruta) {
+        try {
+          var url = new URL(String(ruta || '/'), location.origin);
+          if (url.origin === location.origin && !/\/mudanza\.html$/.test(url.pathname)) return url.href;
+        } catch (error) { /* ruta no válida */ }
+        return './';
+      }
+
+      function idioma() {
+        var guardado = null;
+        try { guardado = localStorage.getItem('language'); } catch (error) { /* sin almacenamiento */ }
+        var candidatos = [guardado].concat(navigator.languages || [navigator.language]);
+        for (var i = 0; i < candidatos.length; i += 1) {
+          var corto = String(candidatos[i] || '').toLowerCase().split('-')[0];
+          if (textos[corto]) return corto;
+        }
+        return 'es';
+      }
+    }());
+  </script>
+</body>
+</html>

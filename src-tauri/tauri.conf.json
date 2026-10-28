@@ -32,7 +32,7 @@
     "category": "Productivity",
     "shortDescription": "Editor Markdown con soporte LaTeX",
     "longDescription": "EdiMarkdown es un editor de Markdown con vista previa, fórmulas LaTeX y exportación a varios formatos.",
-    "homepage": "https://edimarkweb.github.io/",
+    "homepage": "https://edimarkdown.github.io/",
     "linux": {
       "deb": {
         "desktopTemplate": "desktop-entry.desktop"

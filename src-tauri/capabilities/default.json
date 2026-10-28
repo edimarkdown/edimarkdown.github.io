@@ -19,8 +19,8 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "https://api.github.com/repos/edimarkweb/*" },
-        { "url": "https://github.com/edimarkweb/*" }
+        { "url": "https://api.github.com/repos/edimarkdown/*" },
+        { "url": "https://github.com/edimarkdown/*" }
       ]
     }
   ]

@@ -10,7 +10,7 @@ No cal saber Markdown. Escriu al panell de l'esquerra i veuràs el document comp
 
 Quan acabis: **Desar** (`Ctrl+S`) deixa un arxiu `.md` de text corrent, que s'obre a qualsevol lloc, i **Exportar** genera el Word, el PDF o el format que necessitis lliurar.
 
-Aquest manual és sempre a **Ajuda** o amb `F1`. També hi ha un [article del blog](https://educacion.bilateria.org/edimarkweb-escribir-en-markdown-y-entregar-en-cualquier-formato) que explica per a què serveix EdiMarkdown a classe, amb exemples i captures.
+Aquest manual és sempre a **Ajuda** o amb `F1`. També hi ha un [article del blog](https://educacion.bilateria.org/edimarkdown-escribir-en-markdown-y-convertir-a-cualquier-formato) que explica per a què serveix EdiMarkdown a classe, amb exemples i captures.
 
 ---
 
@@ -163,7 +163,7 @@ El botó de copiar, al costat d'Exportar, porta el contingut al porta-retalls en
 
 ## L'aplicació d'escriptori
 
-És la mateixa aplicació instal·lada a Linux, Windows i macOS. Els instal·ladors són a la [pàgina de descàrregues](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest).
+És la mateixa aplicació instal·lada a Linux, Windows i macOS. Els instal·ladors són a la [pàgina de descàrregues](https://github.com/edimarkdown/edimarkdown.github.io/releases/latest).
 
 Davant del navegador afegeix: doble clic per obrir arxius `.md`, desament directe sense passar per la carpeta de descàrregues, la ubicació de l'arxiu de cada pestanya en passar-hi el ratolí per sobre o al seu menú del botó dret (si la premeu, s'obre la seva carpeta), corrector ortogràfic del sistema i funcionament sense connexió (Pandoc, EdiCuaTeX, Sirena i Mermaid hi van inclosos). En arrencar comprova si hi ha una versió nova i ho avisa amb **Descarregar i instal·lar**.
 
@@ -237,4 +237,4 @@ Les ampliacions són les fórmules LaTeX, les notes al peu `[^nota]`, les cites 
 
 ## Llicència i contribucions
 
-EdiMarkdown és programari lliure sota la [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html): pots fer-lo servir a la teva aula, adaptar-lo i desplegar-lo en servidors propis, sempre que comparteixis qualsevol millora sota la mateixa llicència. Si detectes un problema o vols proposar canvis, obre una incidència a [GitHub](https://github.com/edimarkweb/edimarkweb.github.io/issues) o envia un pull request.
+EdiMarkdown és programari lliure sota la [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html): pots fer-lo servir a la teva aula, adaptar-lo i desplegar-lo en servidors propis, sempre que comparteixis qualsevol millora sota la mateixa llicència. Si detectes un problema o vols proposar canvis, obre una incidència a [GitHub](https://github.com/edimarkdown/edimarkdown.github.io/issues) o envia un pull request.

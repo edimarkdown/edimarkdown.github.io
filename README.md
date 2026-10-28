@@ -2,11 +2,12 @@
 
 EdiMarkdown es un editor Markdown orientado a docentes, estudiantes y creadores técnicos que necesitan escribir, visualizar y exportar contenido sin montar una cadena de herramientas. Funciona en el navegador y también como aplicación de escritorio para Linux, Windows y macOS, con las mismas prestaciones: edición Markdown y HTML sincronizada, soporte completo de LaTeX con KaTeX y utilidades de importación/exportación basadas en Pandoc.
 
-- 🌐 Aplicación publicada en: [https://edimarkweb.github.io/](https://edimarkweb.github.io/)
-- 💻 Aplicación de escritorio: [últimos instaladores para Linux, Windows y macOS](https://github.com/edimarkweb/edimarkweb.github.io/releases/latest)
+- 🌐 Aplicación publicada en: [https://edimarkdown.github.io/](https://edimarkdown.github.io/)
+  - Hasta la versión 3.4.0 estaba en `edimarkweb.github.io`. Esa dirección lleva a esta y, si el navegador guarda documentos de allí, ofrece traerlos con un clic.
+- 💻 Aplicación de escritorio: [últimos instaladores para Linux, Windows y macOS](https://github.com/edimarkdown/edimarkdown.github.io/releases/latest)
   - 🍎 En macOS, la primera vez hay que quitar la cuarentena: `xattr -dr com.apple.quarantine /Applications/EdiMarkdown.app` ([por qué](manual.md#la-aplicación-de-escritorio))
 - 📘 Manual de usuario: [manual.md](manual.md) (también en [inglés](manual-en.md), [català](manual-ca.md), [galego](manual-gl.md) y [euskara](manual-eu.md))
-- 🐞 Incidencias y mejoras: [Issues de GitHub](https://github.com/edimarkweb/edimarkweb.github.io/issues)
+- 🐞 Incidencias y mejoras: [Issues de GitHub](https://github.com/edimarkdown/edimarkdown.github.io/issues)
 
 ![Interfaz de EdiMarkdown](logo.png)
 
@@ -69,8 +70,8 @@ Consulta la tabla completa en el [manual](manual.md#atajos-de-teclado).
 
 1. Clona el repositorio usando SSH (configurado en `~/.gitconfig`):
    ```bash
-   git clone git@github.com:edimarkweb/edimarkweb.github.io.git
-   cd edimarkweb.github.io
+   git clone git@github.com:edimarkdown/edimarkdown.github.io.git
+   cd edimarkdown.github.io
    ```
 2. Opción rápida: abre `index.html` directamente en tu navegador. Ten en cuenta que la versión web carga varias bibliotecas desde CDN, así que necesita conexión; la que funciona sin ella es la aplicación de escritorio, que las lleva incorporadas.
 3. Si prefieres servirlo localmente, utiliza la utilidad que quieras (`python -m http.server`, `npx serve`, etc.) para evitar restricciones de origen en algunos navegadores.
@@ -167,7 +168,7 @@ Pandoc y el conversor de PDF (Pyodide y PyMuPDF) se sirven desde el propio sitio
 3. Asegúrate de que tus cambios funcionan en navegadores modernos (Chromium/Firefox).
 4. Envía un pull request describiendo el problema resuelto y, si aplica, captura o vídeo corto.
 
-Para reportar errores o proponer mejoras, utiliza las [incidencias de GitHub](https://github.com/edimarkweb/edimarkweb.github.io/issues). El [manual](manual.md) sirve como referencia funcional para validar comportamientos.
+Para reportar errores o proponer mejoras, utiliza las [incidencias de GitHub](https://github.com/edimarkdown/edimarkdown.github.io/issues). El [manual](manual.md) sirve como referencia funcional para validar comportamientos.
 
 ## Cómo se ha hecho
 
