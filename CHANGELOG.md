@@ -4,6 +4,12 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.1] - 2026-10-28
+
+- La aplicación de escritorio busca una versión nueva cada vez que se abre. Antes lo hacía una vez al día, y una versión recién publicada podía tardar hasta 24 horas en anunciarse.
+- En la web, «No volver a mostrar» en el aviso de la aplicación de escritorio vale para siempre. Antes el aviso volvía con cada versión nueva; quien lo había marcado en una versión anterior ya no lo vuelve a ver.
+- Al cambiar de disposición en un equipo lento, el panel que llega ya no da un salto: el que se va se esconde cuando ha terminado de encogerse, y no a un tiempo fijo.
+
 ## [3.5.0] - 2026-10-28
 
 - La web se ha mudado a [edimarkdown.github.io](https://edimarkdown.github.io/), con el nombre de la aplicación. La dirección anterior, `edimarkweb.github.io`, lleva a la nueva. Si el navegador guarda documentos de allí, ofrece llevárselos con un clic, con sus imágenes y preferencias; si no se pueden llevar, ofrece descargarlos en un ZIP.

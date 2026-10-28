@@ -2090,6 +2090,17 @@ test('los tres botones cambian de disposición y dicen cuál está puesta', asyn
 test('los paneles entran creciendo por su lado', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());
+  /*
+    Con la CPU frenada, como en un equipo cargado: el cambio terminaba con un
+    temporizador contado desde el clic y, en GitHub, a veces escondía el panel
+    que se iba antes de que el otro acabara de crecer. Así frenado fallaba
+    siempre; ahora el cambio espera a que acaben sus animaciones. Solo Chromium
+    deja frenar la CPU.
+  */
+  if (process.env.BROWSER !== 'firefox') {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
+  }
 
   const bordes = () => page.evaluate(() => {
     const caja = id => {
@@ -2102,11 +2113,25 @@ test('los paneles entran creciendo por su lado', async (t) => {
   });
 
   // Un clic y una lectura en la misma vuelta: durante el cambio los dos paneles
-  // están a la vista, el que se va todavía sin esconder.
+  // están a la vista, el que se va todavía sin esconder. Los bordes del final se
+  // leen en el instante en que se esconde el que se va: leídos después, el que
+  // llega ya ha tenido tiempo de acabar de crecer y no se ve el salto.
   const pulsar = destino => page.evaluate((valor) => {
-    document.querySelector(`#layout-switch [data-layout="${valor}"]`).click();
     const md = document.getElementById('markdown-panel');
     const html = document.getElementById('html-panel');
+    const caja = (el) => {
+      const { left, right } = el.getBoundingClientRect();
+      return { left: Math.round(left), right: Math.round(right) };
+    };
+    const saliente = valor === 'html' ? md : html;
+    window.__alEsconder = null;
+    const observador = new MutationObserver(() => {
+      if (getComputedStyle(saliente).display !== 'none') return;
+      observador.disconnect();
+      window.__alEsconder = { md: caja(md), html: caja(html) };
+    });
+    observador.observe(saliente, { attributes: true, attributeFilter: ['style'] });
+    document.querySelector(`#layout-switch [data-layout="${valor}"]`).click();
     return {
       mdVisible: getComputedStyle(md).display !== 'none',
       htmlVisible: getComputedStyle(html).display !== 'none',
@@ -2125,14 +2150,12 @@ test('los paneles entran creciendo por su lado', async (t) => {
   assert.equal(entrando.mdVisible, true, 'el Markdown se escondió de golpe');
   assert.equal(entrando.htmlVisible, true, 'el editor visual no había llegado aún');
   assert.deepEqual(entrando.encogiendo.sort(), ['html-panel', 'markdown-panel']);
-  await page.locator('#markdown-panel').waitFor({ state: 'hidden' });
-  const final = await bordes();
+  const final = await (await page.waitForFunction(() => window.__alEsconder)).jsonValue();
   assert.equal(final.html.right, inicio.md.right, 'el borde derecho se movió: no entró por la derecha');
 
   // Y de vuelta, el Markdown entra por la izquierda: su borde izquierdo se queda.
   await pulsar('md');
-  await page.locator('#html-panel').waitFor({ state: 'hidden' });
-  const vuelta = await bordes();
+  const vuelta = await (await page.waitForFunction(() => window.__alEsconder)).jsonValue();
   assert.equal(vuelta.md.left, inicio.md.left, 'el borde izquierdo se movió: no entró por la izquierda');
 });
 
@@ -3684,43 +3707,83 @@ test('la portada del EPUB ofrece los tres modos y limita el peso de la imagen', 
   );
 });
 
-test('el aviso de escritorio reaparece con cada versión y no acumula claves', async (t) => {
+/*
+  La aplicación de escritorio busca una versión nueva en cada arranque. Hasta la
+  3.5.0 lo hacía una vez al día y, si se había abierto en las últimas 24 horas,
+  una versión recién publicada no se anunciaba hasta el día siguiente.
+*/
+test('el escritorio busca actualizaciones en cada arranque', async (t) => {
   const { context, page } = await openApp({
     initStorage: () => {
-      // Preferencias de versiones ya descartadas, que deben desaparecer.
-      localStorage.setItem('edimarkweb-hide-desktop-release-2.16.0', '1');
-      localStorage.setItem('edimarkweb-hide-desktop-release-2.17.0', '1');
+      // Una comprobación de hace un momento, que antes la habría saltado.
+      try { localStorage.setItem('edimarkweb-update-last-check', String(Date.now())); } catch (_error) {}
+      window.__consultas = [];
+      window.__EDIMARK_TAURI__ = {
+        dialog: {},
+        fs: {},
+        opener: {},
+        update: {
+          target: () => 'linux/x86_64',
+          fetch: async (url) => {
+            window.__consultas.push(String(url));
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                tag_name: 'v99.0.0',
+                html_url: 'https://github.com/edimarkdown/edimarkdown.github.io/releases/tag/v99.0.0',
+                assets: [],
+              }),
+            };
+          },
+        },
+      };
     },
   });
   t.after(() => context.close());
 
-  // La versión en marcha no está descartada, así que el aviso sale...
-  await page.locator('#desktop-release-banner').waitFor({ state: 'visible' });
-  // ...y las claves de las versiones anteriores ya no están.
-  const restantes = await page.evaluate(() => Object.keys(localStorage)
-    .filter(key => key.startsWith('edimarkweb-hide-desktop-release-')));
-  assert.deepEqual(restantes, []);
+  await page.locator('#update-banner').waitFor({ state: 'visible', timeout: 15000 });
+  assert.deepEqual(await page.evaluate(() => window.__consultas),
+    ['https://api.github.com/repos/edimarkdown/edimarkdown.github.io/releases/latest']);
+});
 
+test('«No volver a mostrar» oculta el aviso de escritorio para siempre', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.locator('#desktop-release-banner').waitFor({ state: 'visible' });
   await page.locator('#desktop-banner-never-show').check();
   await page.reload();
   await page.locator('.tab-name').first().waitFor();
-  await assert.doesNotReject(
-    page.locator('#desktop-release-banner').waitFor({ state: 'hidden' }),
-    'el aviso debía seguir oculto para la misma versión',
-  );
+  assert.equal(await page.locator('#desktop-release-banner').isVisible(), false);
+  // La clave no lleva versión: una versión nueva no la deja atrás.
+  assert.equal(await page.evaluate(() => localStorage.getItem('edimarkweb-hide-desktop-release')), '1');
+});
 
-  // Con una versión nueva publicada, la clave guardada pasa a ser antigua.
-  await page.evaluate(() => {
-    const stored = Object.keys(localStorage)
-      .filter(key => key.startsWith('edimarkweb-hide-desktop-release-'));
-    stored.forEach(key => localStorage.removeItem(key));
-    localStorage.setItem('edimarkweb-hide-desktop-release-0.0.1', '1');
+/*
+  Hasta la 3.5.0 la casilla valía solo para su versión, con una clave por
+  versión. Quien la marcó ya dijo que no: el aviso no vuelve, y las claves viejas
+  se recogen en la única, igual que la marca de la comprobación diaria, que ya
+  no se usa.
+*/
+test('las claves del aviso con versión cuentan como descartado', async (t) => {
+  const { context, page } = await openApp({
+    initStorage: () => {
+      if (sessionStorage.getItem('sembrado')) return;
+      sessionStorage.setItem('sembrado', '1');
+      localStorage.setItem('edimarkweb-hide-desktop-release-2.16.0', '1');
+      localStorage.setItem('edimarkweb-hide-desktop-release-3.4.0', '1');
+      localStorage.setItem('edimarkweb-update-last-check', '1793176339613');
+    },
   });
-  await page.reload();
-  await page.locator('#desktop-release-banner').waitFor({ state: 'visible' });
-  const trasLaPurga = await page.evaluate(() => Object.keys(localStorage)
-    .filter(key => key.startsWith('edimarkweb-hide-desktop-release-')));
-  assert.deepEqual(trasLaPurga, []);
+  t.after(() => context.close());
+
+  assert.equal(await page.locator('#desktop-release-banner').isVisible(), false);
+  assert.equal(await page.locator('#desktop-banner-never-show').isChecked(), true);
+  const claves = await page.evaluate(() => Object.keys(localStorage)
+    .filter(clave => clave.startsWith('edimarkweb-hide-desktop-release') || clave === 'edimarkweb-update-last-check')
+    .sort());
+  assert.deepEqual(claves, ['edimarkweb-hide-desktop-release']);
 });
 
 /*

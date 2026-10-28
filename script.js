@@ -1,12 +1,19 @@
-/* Única copia de la versión en la aplicación; package.json es la otra fuente. */
-const APP_VERSION = '3.5.0';
-const DESKTOP_RELEASE_BANNER_PREFIX = 'edimarkweb-hide-desktop-release-';
-const DESKTOP_RELEASE_BANNER_KEY = `${DESKTOP_RELEASE_BANNER_PREFIX}${APP_VERSION}`;
+/*
+  La versión de la aplicación. Se repite en package.json, src-tauri/tauri.conf.json
+  y src-tauri/Cargo.toml; una prueba de test/desktop-updater.test.mjs vigila que
+  las cuatro coincidan.
+*/
+const APP_VERSION = '3.5.1';
+/*
+  «No volver a mostrar» vale para siempre. Hasta la 3.5.0 la clave llevaba la
+  versión y el aviso volvía con cada versión nueva; quien lo descartó entonces
+  ya dijo que no, así que esas claves cuentan como descartado.
+*/
+const DESKTOP_RELEASE_BANNER_KEY = 'edimarkweb-hide-desktop-release';
+const OLD_DESKTOP_RELEASE_BANNER_PREFIX = 'edimarkweb-hide-desktop-release-';
 const UPDATE_AUTO_CHECK_KEY = 'edimarkweb-update-autocheck';
-const UPDATE_LAST_CHECK_KEY = 'edimarkweb-update-last-check';
-// Una comprobación diaria basta: publicar una versión y que el aviso tarde unas
-// horas en aparecer es preferible a consultar GitHub en cada arranque.
-const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Hasta la 3.5.0 se comprobaba una vez al día; esta marca ya no se usa.
+const OLD_UPDATE_LAST_CHECK_KEY = 'edimarkweb-update-last-check';
 
 // Declaración de variables globales
 let turndownService;
@@ -345,10 +352,8 @@ function reportStorageFailure(error) {
 }
 
 /*
-  La preferencia de ocultar el aviso de escritorio lleva la versión en su
-  clave, para que una versión nueva vuelva a anunciarse aunque se marcara «No
-  volver a mostrar». Esas claves se quedarían acumuladas una por versión, así
-  que al arrancar se descartan todas menos la de la versión en marcha.
+  Las claves del aviso de escritorio con versión (hasta la 3.5.0) pasan a la
+  clave única: si había alguna, el aviso ya se había descartado.
 */
 function purgeOldReleaseBannerKeys() {
     let storedKeys;
@@ -358,9 +363,12 @@ function purgeOldReleaseBannerKeys() {
         console.warn('No se pudo revisar el almacenamiento local:', error);
         return;
     }
-    storedKeys
-        .filter(key => key.startsWith(DESKTOP_RELEASE_BANNER_PREFIX) && key !== DESKTOP_RELEASE_BANNER_KEY)
-        .forEach(key => safeLocalStorageRemove(key));
+    const oldBannerKeys = storedKeys.filter(key => key.startsWith(OLD_DESKTOP_RELEASE_BANNER_PREFIX));
+    if (oldBannerKeys.some(key => safeLocalStorageGet(key) === '1')) {
+        safeLocalStorageSet(DESKTOP_RELEASE_BANNER_KEY, '1', { notify: false });
+    }
+    oldBannerKeys.forEach(key => safeLocalStorageRemove(key));
+    safeLocalStorageRemove(OLD_UPDATE_LAST_CHECK_KEY);
     // El contador de visitas de la web se retiró en la 3.2.0; su marca de
     // última visita ya no sirve a nadie.
     safeLocalStorageRemove('analytics:last-visit:edimarkweb');
@@ -8478,8 +8486,10 @@ function buildHtmlWithTex() {
   return clone.innerHTML;
 }
 
-let layoutTransitionTimer = null;
 let panelSlideTimer = null;
+// Cada cambio de disposición lleva su número: el final de uno interrumpido no
+// puede esconder los paneles del siguiente.
+let cambioDePaneles = 0;
 
 /*
   Los paneles no aparecen ni desaparecen de golpe: el que entra crece desde
@@ -8499,6 +8509,40 @@ function limpiarTransicionDePaneles() {
   panelSlideTimer = null;
   document.querySelectorAll('#editor-container .panel.panel-sliding, #editor-container .panel.panel-fade-in')
     .forEach(panel => panel.classList.remove('panel-sliding', 'panel-fade-in'));
+}
+
+/*
+  El cambio termina cuando terminan sus animaciones, no a una hora fija. Con dos
+  temporizadores contados desde el clic (200 ms para esconder el que se va,
+  220 ms para retirar la transición), en un equipo cargado el que se iba
+  desaparecía antes de que el otro acabara de crecer, y el que llegaba daba un
+  salto: el propio clic tarda lo suyo y la transición no arranca hasta el
+  fotograma siguiente. Con la CPU cuatro veces más lenta, el borde del editor
+  visual se quedaba hasta 116 px corto al esconderse el Markdown (28-10-2026), el
+  fallo que la prueba «los paneles entran creciendo por su lado» veía a veces en
+  GitHub. `getAnimations()` recoge las transiciones ya creadas aunque no hayan
+  arrancado; sin ninguna (movimiento reducido), el cambio termina en el acto.
+*/
+function terminarCambioDePaneles(paneles, salientes, contenedor) {
+  const cambio = ++cambioDePaneles;
+  const terminar = () => {
+    if (cambio !== cambioDePaneles) return;
+    panelSlideTimer = null;
+    document.querySelectorAll('#editor-container .panel.panel-sliding, #editor-container .panel.panel-fade-in')
+      .forEach(panel => panel.classList.remove('panel-sliding', 'panel-fade-in'));
+    salientes.forEach(panel => { panel.style.display = 'none'; });
+    contenedor?.classList.remove('layout-changing');
+  };
+  const presentes = paneles.filter(Boolean);
+  if (presentes.some(panel => typeof panel.getAnimations !== 'function')) {
+    panelSlideTimer = setTimeout(terminar, 220);
+    return;
+  }
+  // Una animación sin fin no lo marca: con ella el cambio no terminaría nunca.
+  const animaciones = presentes
+    .flatMap(panel => panel.getAnimations())
+    .filter(animacion => animacion.effect?.getComputedTiming().endTime !== Infinity);
+  Promise.allSettled(animaciones.map(animacion => animacion.finished)).then(terminar);
 }
 
 function estaOculto(panel) {
@@ -8617,12 +8661,6 @@ function applyLayout(layout) {
     if (ancho) panel.style.width = ancho;
     else prepararSalida(panel, deslizando, salientes);
   });
-  panelSlideTimer = setTimeout(() => {
-    document.querySelectorAll('#editor-container .panel.panel-sliding, #editor-container .panel.panel-fade-in')
-      .forEach(panel => panel.classList.remove('panel-sliding', 'panel-fade-in'));
-    salientes.forEach(panel => { panel.style.display = 'none'; });
-    panelSlideTimer = null;
-  }, 200);
 
   document.querySelectorAll('#layout-menu [data-layout]').forEach((option) => {
     const selected = option.dataset.layout === layout;
@@ -8644,13 +8682,8 @@ function applyLayout(layout) {
   refrescarTopeDeLaLupa();
 
   // La transición del ancho, solo mientras dura el cambio.
-  if (editorContainer) {
-    editorContainer.classList.add('layout-changing');
-    clearTimeout(layoutTransitionTimer);
-    layoutTransitionTimer = setTimeout(() => {
-      editorContainer.classList.remove('layout-changing');
-    }, 220);
-  }
+  if (editorContainer) editorContainer.classList.add('layout-changing');
+  terminarCambioDePaneles([mdPanel, htmlPanel], salientes, editorContainer);
 
   // Los tres botones dicen lo mismo que el menú: cuál está puesta.
   document.querySelectorAll('#layout-switch [data-layout]').forEach((button) => {
@@ -9677,7 +9710,6 @@ window.onload = async () => {
                 target,
                 ...(fetchImpl ? { fetchImpl } : {}),
             });
-            safeLocalStorageSet(UPDATE_LAST_CHECK_KEY, String(Date.now()), { notify: false });
             lastUpdateCheck = result;
             if (result.available) {
                 renderUpdateBanner();
@@ -9813,12 +9845,11 @@ window.onload = async () => {
         });
     }
     if (nativeMode && autoUpdateCheckEnabled()) {
-        const previousCheck = Number(safeLocalStorageGet(UPDATE_LAST_CHECK_KEY, '0')) || 0;
-        if (Date.now() - previousCheck >= UPDATE_CHECK_INTERVAL_MS) {
-            // Fuera del arranque: la comprobación no debe retrasar la apertura
-            // del documento con el que se ha abierto la aplicación.
-            setTimeout(() => { checkForApplicationUpdate(); }, 4000);
-        }
+        // Se comprueba en cada arranque: con una comprobación al día, una
+        // versión publicada podía tardar hasta 24 horas en anunciarse. Fuera del
+        // arranque, eso sí: no debe retrasar la apertura del documento con el
+        // que se ha abierto la aplicación.
+        setTimeout(() => { checkForApplicationUpdate(); }, 4000);
     }
     if (desktopMode) {
         document.body.classList.add('desktop-mode');
