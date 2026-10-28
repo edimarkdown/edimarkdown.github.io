@@ -6299,6 +6299,25 @@ test('cada pestaña vuelve por donde se quedó', async (t) => {
   t.after(() => context.close());
 
   await page.locator('#new-tab-btn').click();
+  /*
+    El 28-10-2026 falló en GitHub una vez con el editor en 0, y no se reprodujo
+    en local ni con la CPU frenada ocho veces y el equipo cargado. Si vuelve a
+    pasar, el mensaje dirá qué devolvió el editor arriba: se anota cada vez que
+    algo lo lleva cerca del principio, con quién lo hizo.
+  */
+  await page.evaluate(() => {
+    const editor = document.getElementById('markdown-input');
+    const nativo = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+    window.__subidas = [];
+    Object.defineProperty(editor, 'scrollTop', {
+      configurable: true,
+      get() { return nativo.get.call(this); },
+      set(valor) {
+        if (valor < 50) window.__subidas.push(`${Math.round(valor)} ← ${new Error().stack.split('\n').slice(2, 5).map(l => l.trim()).join(' ← ')}`);
+        nativo.set.call(this, valor);
+      },
+    });
+  });
   const documento = Array.from({ length: 60 }, (_, i) => `Línea ${i + 1} de un documento largo de prueba.`).join('\n\n');
   await page.locator('#markdown-input').fill(documento);
   await page.locator('#html-output p').getByText('Línea 60', { exact: false }).waitFor();
@@ -6328,7 +6347,8 @@ test('cada pestaña vuelve por donde se quedó', async (t) => {
     markdown: Math.round(document.getElementById('markdown-input').scrollTop),
     vista: Math.round(document.getElementById('preview-desk').scrollTop),
   }));
-  assert.ok(antes.markdown > 0, 'la prueba necesita el editor desplazado');
+  assert.ok(antes.markdown > 0, `la prueba necesita el editor desplazado; lo subieron: ${
+    JSON.stringify(await page.evaluate(() => window.__subidas))}`);
 
   await page.locator('#new-tab-btn').click();
   await page.locator('.tab').nth(1).click();
