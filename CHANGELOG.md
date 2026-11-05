@@ -4,6 +4,10 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.3] - 2026-11-05
+
+- El pie de las páginas impresas es una opción: **Pie al imprimir**, en el formato del documento, con «Ninguno», «Número de página» o «Nombre y número de página». Se puede fijar para todos los documentos en las opciones generales o para uno solo. De partida no hay pie, como se imprimía hasta la 3.5.1; en la 3.5.2 salía siempre.
+
 ## [3.5.2] - 2026-11-05
 
 - Un bloque `<style>` escrito en el documento cambia solo la hoja. Antes se aplicaba a toda la ventana: `body { margin-left: 3cm }` desplazaba los menús y el editor, y el documento seguía igual. Lo que dice de márgenes y medidas de la página no se aplica en la hoja: esos márgenes se fijan en las opciones del documento. El HTML exportado lleva el bloque tal cual.

@@ -3,7 +3,7 @@
   y src-tauri/Cargo.toml; una prueba de test/desktop-updater.test.mjs vigila que
   las cuatro coincidan.
 */
-const APP_VERSION = '3.5.2';
+const APP_VERSION = '3.5.3';
 /*
   «No volver a mostrar» vale para siempre. Hasta la 3.5.0 la clave llevaba la
   versión y el aviso volvía con cada versión nueva; quien lo descartó entonces
