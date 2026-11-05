@@ -1,0 +1,3 @@
+# The PDF runtime is pinned by SHA-256 in its manifest: no line-ending
+# conversion on any platform, or a Windows checkout (the desktop build) changes it.
+vendor/pdf-runtime/** -text
