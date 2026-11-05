@@ -4,6 +4,14 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.2] - 2026-11-05
+
+- Un bloque `<style>` escrito en el documento cambia solo la hoja. Antes se aplicaba a toda la ventana: `body { margin-left: 3cm }` desplazaba los menús y el editor, y el documento seguía igual. Lo que dice de márgenes y medidas de la página no se aplica en la hoja: esos márgenes se fijan en las opciones del documento. El HTML exportado lleva el bloque tal cual.
+- Al escribir en la hoja visual, el bloque `<style>` vuelve al Markdown entero. Antes perdía las etiquetas y su CSS se quedaba en el texto como un párrafo.
+- En Chrome, Edge y la aplicación de Windows, al imprimir o guardar en PDF cada página lleva al pie el nombre del documento y el número de página («3 / 12»), sin marcar la casilla de encabezado y pie del navegador. Esa casilla ponía la dirección del editor, o `tauri.localhost` en la aplicación de escritorio. Mientras se imprime, el título de la página es el nombre del documento, que es el que el navegador propone para el PDF.
+- En Windows, un documento abierto con doble clic sale en su pestaña con su nombre. Antes salía como «Documento sin título».
+- Un archivo guardado en UTF-8 por el Bloc de notas antiguo, PowerShell u otros programas de Windows abre con su primer título como título. Una marca invisible al principio del archivo lo convertía en texto normal.
+
 ## [3.5.1] - 2026-10-28
 
 - La aplicación de escritorio busca una versión nueva cada vez que se abre. Antes lo hacía una vez al día, y una versión recién publicada podía tardar hasta 24 horas en anunciarse.

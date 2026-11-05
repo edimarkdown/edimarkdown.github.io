@@ -140,6 +140,8 @@ Karaktere-kontagailuaren ondoan dokumentuaren hizkuntza duen botoi bat dago (`ES
 * **Dokumentua**: hizkuntza, egilea, aurkibide automatikoa eta ataleen zenbakiketa.
 * **Formatua**: lerrokatzea, letra-mota eta -tamaina, lerroartea, paper-tamaina, marjinak eta koska.
 
+Orriaren marjinak hemen finkatzen dira. Dokumentuan idatzitako `<style>` batek testuaren itxura aldatzen du, kolorea edo atzealdea adibidez, baina orriaren barruan bakarrik, eta ez ditu orriaren marjinak eta neurriak mugitzen. Esportatutako HTMLak dagoen bezala darama.
+
 Finkatzen duzun guztia `.md` fitxategiaren barruan gordetzen da, fitxategiaren hasieran dauden metadatu-lerroetan, beraz dokumentuarekin batera edozein ekipotara bidaiatzen du. Lan ezberdinetan ezarpen berak errepikatzen badituzu, gorde **profil** gisa (koadroaren goialdean) beste dokumentu batean klik batez aplikatzeko.
 
 **Ezarpenak → Aukera orokorrak…** atalak dokumentu berrien abiapuntuko balioak gordetzen ditu: hizkuntza, egilea, testua eta orria, EPUBaren azala, bibliografia eta LaTeX aukerak.
@@ -155,7 +157,7 @@ Finkatzen duzun guztia `.md` fitxategiaren barruan gordetzen da, fitxategiaren h
 * **EPUB**: EPUB 3 irakurgailuekin bateragarria den liburu digitala.
 * **HTML**: web orri autonomoa, estiloak eta formulak barruan dituela.
 * **TEX (LaTeX)**: `.tex` fitxategi osoa, konpilatzeko prest.
-* **PDF**: inprimatzeko elkarrizketa irekitzen du («Gorde PDF gisa»); pantailan ikusten duzuna zehazki ateratzen da.
+* **PDF**: inprimatzeko elkarrizketa irekitzen du («Gorde PDF gisa»); pantailan ikusten duzuna zehazki ateratzen da. Chromen, Edgen eta Windowseko aplikazioan, orri bakoitzaren oinean dokumentuaren izena eta orri-zenbakia agertzen dira, nabigatzailearen goiburu eta orri-oinen aukera markatu gabe. Firefoxek eta Safarik aukera horrekin ematen dute orri-zenbakia; macOS eta Linuxeko aplikazioetan oin hau ez da agertzen.
 
 Kopiatzeko botoiak, Esportatu-ren ondoan, edukia arbelera bidaltzen du Markdown, HTML edo LaTeX gisa, fitxategirik sortu gabe.
 

@@ -13,6 +13,8 @@ las alternativas descartadas y sus consecuencias.
 | [6](0006-las-pruebas-de-navegador-descargan-una-vez-por-tanda-lo-que-viene-de-las-cdn.md) | Las pruebas de navegador descargan una vez por tanda lo que viene de las CDN | aceptado |
 | [7](0007-la-web-se-muda-a-edimarkdown-github-io-y-se-lleva-los-documentos-guardados-en-el-navegador.md) | La web se muda a edimarkdown.github.io y se lleva los documentos guardados en el navegador | aceptado |
 | [8](0008-el-cambio-de-disposicion-termina-cuando-acaban-sus-animaciones.md) | El cambio de disposición termina cuando acaban sus animaciones | aceptado |
+| [9](0009-los-estilos-del-documento-se-aplican-solo-a-la-hoja-y-sin-la-geometria-de-la-pagina.md) | Los estilos del documento se aplican solo a la hoja y sin la geometría de la página | aceptado |
+| [10](0010-la-hoja-impresa-lleva-su-propio-pie-con-el-nombre-y-el-numero-de-pagina.md) | La hoja impresa lleva su propio pie con el nombre y el número de página | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número

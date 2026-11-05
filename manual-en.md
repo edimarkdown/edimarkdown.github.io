@@ -140,6 +140,8 @@ Next to the character count is a button showing the document's language (`ES`, `
 * **Document**: language, author, automatic table of contents and section numbering.
 * **Format**: alignment, font and size, line spacing, paper size, margins and indentation.
 
+Page margins are set here. A `<style>` written in the document changes how the text looks, such as its colour or background, but only inside the sheet, and it does not move the page margins or measurements. The exported HTML keeps it as it is.
+
 Everything you set is saved inside the `.md` file itself, in metadata lines at the top, so it travels with the document to any computer. If you repeat the same settings across several jobs, save them as a **profile** (at the top of the dialog) to apply them with one click to another document.
 
 **Settings → General options…** sets the defaults for new documents: language, author, text and page, EPUB cover, bibliography and LaTeX options.
@@ -155,7 +157,7 @@ Everything you set is saved inside the `.md` file itself, in metadata lines at t
 * **EPUB**: a digital book compatible with EPUB 3 readers.
 * **HTML**: a self-contained web page, with styles and formulas included.
 * **TEX (LaTeX)**: a complete `.tex` file, ready to compile.
-* **PDF**: opens the print dialog ("Save as PDF"); it produces exactly what you see on screen.
+* **PDF**: opens the print dialog ("Save as PDF"); it produces exactly what you see on screen. In Chrome, Edge and the Windows app, the foot of every page carries the document's name and the page number, without ticking the browser's headers and footers option. Firefox and Safari give the page number with that option; in the macOS and Linux apps this footer does not appear.
 
 The copy button, next to Export, sends the content to the clipboard as Markdown, HTML or LaTeX, without creating a file.
 
