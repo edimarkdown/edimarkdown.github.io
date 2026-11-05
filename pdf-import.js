@@ -80,7 +80,7 @@ function ocrTextToMarkdown(text, pageNumber) {
    afterwards. The reading that says more wins: the ordinary conversion goes
    back in whenever OCR does not beat the text the page already had, so
    neither the image nor the text extracted from the file is lost. */
-function ocrPageMarkdown(text, page) {
+export function ocrPageMarkdown(text, page) {
     const recognised = String(text || '').replace(/[^\p{L}\p{N}]/gu, '').length;
     const fallback = typeof page.fallback === 'string' ? page.fallback.trim() : '';
     const previous = Number(page.letters) || 0;
