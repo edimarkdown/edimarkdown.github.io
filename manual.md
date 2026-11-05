@@ -138,7 +138,7 @@ La lupa (o `Ctrl+F`) abre el buscador. Resalta todas las coincidencias, `Enter` 
 Junto al contador de caracteres hay un botón con el idioma del documento (`ES`, `CA`...). Al pulsarlo se abre **Este documento**, con dos pestañas:
 
 * **Documento**: idioma, autor, índice automático y numeración de apartados.
-* **Formato**: alineación, tipo y tamaño de letra, interlineado, tamaño de papel, márgenes y sangría.
+* **Formato**: alineación, tipo y tamaño de letra, interlineado, tamaño de papel, márgenes, sangría y pie al imprimir.
 
 Los márgenes de la página se fijan aquí. Un `<style>` escrito en el documento cambia el aspecto del texto, como el color o el fondo, pero solo dentro de la hoja, y no mueve los márgenes ni las medidas de la página. El HTML exportado lo lleva tal cual.
 
@@ -157,7 +157,7 @@ Todo lo que fijes se guarda dentro del propio `.md`, en unas líneas de metadato
 * **EPUB**: libro digital compatible con lectores EPUB 3.
 * **HTML**: página web autónoma, con los estilos y las fórmulas dentro.
 * **TEX (LaTeX)**: un `.tex` completo, listo para compilar.
-* **PDF**: abre el diálogo de impresión («Guardar como PDF»); sale exactamente lo que ves en pantalla. En Chrome, Edge y la aplicación de Windows, al pie de cada página van el nombre del documento y el número de página, sin marcar la casilla de encabezado y pie del navegador. Firefox y Safari dan el número de página con esa casilla; en las aplicaciones de macOS y Linux este pie no sale.
+* **PDF**: abre el diálogo de impresión («Guardar como PDF»); sale exactamente lo que ves en pantalla. Con **Pie al imprimir**, en el formato del documento, cada página lleva al pie el número de página, o el nombre del documento y el número, sin marcar la casilla de encabezado y pie del navegador. Sale en Chrome, Edge y la aplicación de Windows; Firefox y Safari solo dan el número con esa casilla, y en las aplicaciones de macOS y Linux este pie no sale.
 
 El botón de copiar, junto a Exportar, lleva el contenido al portapapeles en Markdown, HTML o LaTeX, sin generar ningún archivo.
 

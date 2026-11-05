@@ -7172,7 +7172,7 @@ const LATEX_SETTINGS_DEFAULTS = {
     */
     documentFormat: {
         fontSize: '12', font: 'serif', lineHeight: '1.5', paperSize: 'a4',
-        orientation: 'portrait', pageBreakBeforeH1: 'no',
+        orientation: 'portrait', pageBreakBeforeH1: 'no', printFooter: 'none',
     },
 };
 
@@ -7204,6 +7204,8 @@ function withDefaultDocumentFormat(stored) {
         // sigue significando «sin fijar».
         if (!Object.prototype.hasOwnProperty.call(stored, 'orientation')) format.orientation = 'portrait';
         if (!Object.prototype.hasOwnProperty.call(stored, 'pageBreakBeforeH1')) format.pageBreakBeforeH1 = 'no';
+        // Sin pie, que es como se imprimía antes de existir la opción.
+        if (!Object.prototype.hasOwnProperty.call(stored, 'printFooter')) format.printFooter = 'none';
         return format;
     }
     Object.entries(LATEX_SETTINGS_DEFAULTS.documentFormat).forEach(([key, value]) => {
@@ -13549,6 +13551,12 @@ window.onload = async () => {
             ['yes', 'doc_format_yes', 'Sí'],
             ['no', 'doc_format_no', 'No'],
         ])));
+        pageGrid.appendChild(buildFormatField('doc_format_field_print_footer', 'Pie al imprimir', buildFormatSelect(`${prefix}-print-footer`, [
+            ...blank,
+            ['none', 'doc_format_footer_none', 'Ninguno'],
+            ['page', 'doc_format_footer_page', 'Número de página'],
+            ['name', 'doc_format_footer_name', 'Nombre y número de página'],
+        ])));
         pageGroup.appendChild(pageGrid);
 
         const marginsBlock = document.createElement('div');
@@ -13613,6 +13621,7 @@ window.onload = async () => {
         setValue('indent', values.indent);
         setValue('hyphenate', values.hyphenate);
         setValue('pagebreak-h1', values.pageBreakBeforeH1);
+        setValue('print-footer', values.printFooter);
     }
 
     /*
@@ -13653,6 +13662,11 @@ window.onload = async () => {
             yes: ['doc_format_yes', 'Sí'],
             no: ['doc_format_no', 'No'],
         },
+        printFooter: {
+            none: ['doc_format_footer_none', 'Ninguno'],
+            page: ['doc_format_footer_page', 'Número de página'],
+            name: ['doc_format_footer_name', 'Nombre y número de página'],
+        },
     };
 
     const DOC_FORMAT_INHERITED_SELECTS = [
@@ -13663,6 +13677,7 @@ window.onload = async () => {
         ['indent', 'indent'],
         ['hyphenate', 'hyphenate'],
         ['pagebreak-h1', 'pageBreakBeforeH1'],
+        ['print-footer', 'printFooter'],
     ];
 
     const DOC_FORMAT_INHERITED_NUMBERS = [
@@ -13802,6 +13817,7 @@ window.onload = async () => {
             indent: value('indent'),
             hyphenate: value('hyphenate'),
             pageBreakBeforeH1: value('pagebreak-h1'),
+            printFooter: value('print-footer'),
         };
         return api ? api.normalizeDocumentFormat(raw) : raw;
     }
@@ -13916,6 +13932,7 @@ window.onload = async () => {
         add('doc_format_field_indent', 'Sangría de primera línea', inheritedValueLabel('indent', format.indent));
         add('doc_format_field_hyphenate', 'Partir palabras con guion', inheritedValueLabel('hyphenate', format.hyphenate));
         add('doc_format_field_pagebreak_h1', 'Cada H1 empieza en página nueva', inheritedValueLabel('pageBreakBeforeH1', format.pageBreakBeforeH1));
+        add('doc_format_field_print_footer', 'Pie al imprimir', inheritedValueLabel('printFooter', format.printFooter));
         // Y qué quiere decir un guion, que si no se lee como un fallo.
         if (lines.some(line => line.endsWith(DOC_FORMAT_STATUS_UNSET))) {
             lines.push(getTranslation(
@@ -13988,8 +14005,11 @@ window.onload = async () => {
     window.__paginaParaImprimir = paginaParaImprimir;
 
     /*
-      El pie de cada página impresa: el nombre del documento a la izquierda y
-      «página / total» a la derecha, alineados con el texto.
+      El pie de cada página impresa, si el documento lo pide (`printFooter`,
+      «Pie al imprimir» en el formato): «página / total» a la derecha y, si se
+      elige, el nombre del documento a la izquierda, alineados con el texto. De
+      partida no hay pie, como antes de existir la opción: no todo el mundo lo
+      quiere en el papel.
 
       El número de página solo salía marcando «Encabezado y pie» en el cuadro
       del navegador, y ese pie pone a la izquierda la dirección de la página
@@ -14022,12 +14042,17 @@ window.onload = async () => {
             document.head.appendChild(sheet);
         }
         const nombre = nombreParaImprimir();
-        const hoja = document.getElementById('html-output');
-        const letra = hoja ? getComputedStyle(hoja).fontFamily : 'serif';
-        const caja = `font-family: ${letra}; font-size: 9pt; color: #555;`;
-        const izquierda = nombre ? `@bottom-left { content: ${textoCss(nombre)}; ${caja} }` : '';
-        const derecha = `@bottom-right { content: counter(page) " / " counter(pages); ${caja} }`;
-        sheet.textContent = `@media print { @page { ${izquierda} ${derecha} } }`;
+        const pie = effectiveDocumentFormat().printFooter;
+        if (pie === 'page' || pie === 'name') {
+            const hoja = document.getElementById('html-output');
+            const letra = hoja ? getComputedStyle(hoja).fontFamily : 'serif';
+            const caja = `font-family: ${letra}; font-size: 9pt; color: #555;`;
+            const izquierda = pie === 'name' && nombre ? `@bottom-left { content: ${textoCss(nombre)}; ${caja} }` : '';
+            const derecha = `@bottom-right { content: counter(page) " / " counter(pages); ${caja} }`;
+            sheet.textContent = `@media print { @page { ${izquierda} ${derecha} } }`;
+        } else {
+            sheet.textContent = '';
+        }
         if (nombre && tituloAntesDeImprimir === null) {
             tituloAntesDeImprimir = document.title;
             document.title = nombre;

@@ -227,3 +227,14 @@ test('DOCX y ODT reciben nombres de fuente reales y cuánto escalar los encabeza
   assert.equal(styles.headingScale, 18 / documentFormat.OFFICE_BASE_FONT_PT);
   assert.deepEqual(styles.marginsCm, { left: 2.5 });
 });
+
+test('el pie al imprimir admite sus tres valores y viaja en el bloque de metadatos', () => {
+  assert.equal(normalizeDocumentFormat({ printFooter: 'Name' }).printFooter, 'name');
+  assert.equal(normalizeDocumentFormat({ printFooter: 'page' }).printFooter, 'page');
+  assert.equal(normalizeDocumentFormat({ printFooter: 'none' }).printFooter, 'none');
+  assert.equal(normalizeDocumentFormat({ printFooter: 'siempre' }).printFooter, '');
+  const entries = documentFormat.toFrontMatterEntries({ printFooter: 'name' });
+  assert.deepEqual(entries.map(entry => entry.lines[0]), ['print-footer: "name"']);
+  assert.equal(documentFormat.readFromFrontMatter('print-footer: page').printFooter, 'page');
+  assert.equal(resolveDocumentFormat({ printFooter: 'none' }, { printFooter: 'page' }).printFooter, 'page');
+});

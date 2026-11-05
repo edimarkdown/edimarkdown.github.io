@@ -138,7 +138,7 @@ Luparrak (edo `Ctrl+F`) bilatzailea irekitzen du. Bat-etortze guztiak nabarmentz
 Karaktere-kontagailuaren ondoan dokumentuaren hizkuntza duen botoi bat dago (`ES`, `CA`...). Sakatuz gero, **Dokumentu hau** irekitzen da, bi fitxarekin:
 
 * **Dokumentua**: hizkuntza, egilea, aurkibide automatikoa eta ataleen zenbakiketa.
-* **Formatua**: lerrokatzea, letra-mota eta -tamaina, lerroartea, paper-tamaina, marjinak eta koska.
+* **Formatua**: lerrokatzea, letra-mota eta -tamaina, lerroartea, paper-tamaina, marjinak, koska eta orri-oina inprimatzean.
 
 Orriaren marjinak hemen finkatzen dira. Dokumentuan idatzitako `<style>` batek testuaren itxura aldatzen du, kolorea edo atzealdea adibidez, baina orriaren barruan bakarrik, eta ez ditu orriaren marjinak eta neurriak mugitzen. Esportatutako HTMLak dagoen bezala darama.
 
@@ -157,7 +157,7 @@ Finkatzen duzun guztia `.md` fitxategiaren barruan gordetzen da, fitxategiaren h
 * **EPUB**: EPUB 3 irakurgailuekin bateragarria den liburu digitala.
 * **HTML**: web orri autonomoa, estiloak eta formulak barruan dituela.
 * **TEX (LaTeX)**: `.tex` fitxategi osoa, konpilatzeko prest.
-* **PDF**: inprimatzeko elkarrizketa irekitzen du («Gorde PDF gisa»); pantailan ikusten duzuna zehazki ateratzen da. Chromen, Edgen eta Windowseko aplikazioan, orri bakoitzaren oinean dokumentuaren izena eta orri-zenbakia agertzen dira, nabigatzailearen goiburu eta orri-oinen aukera markatu gabe. Firefoxek eta Safarik aukera horrekin ematen dute orri-zenbakia; macOS eta Linuxeko aplikazioetan oin hau ez da agertzen.
+* **PDF**: inprimatzeko elkarrizketa irekitzen du («Gorde PDF gisa»); pantailan ikusten duzuna zehazki ateratzen da. Dokumentuaren formatuko **Orri-oina inprimatzean** aukerarekin, orri bakoitzaren oinean orri-zenbakia agertzen da, edo dokumentuaren izena eta zenbakia, nabigatzailearen goiburu eta orri-oinen aukera markatu gabe. Chromen, Edgen eta Windowseko aplikazioan ateratzen da; Firefoxek eta Safarik aukera horrekin bakarrik ematen dute zenbakia, eta macOS eta Linuxeko aplikazioetan oin hau ez da agertzen.
 
 Kopiatzeko botoiak, Esportatu-ren ondoan, edukia arbelera bidaltzen du Markdown, HTML edo LaTeX gisa, fitxategirik sortu gabe.
 

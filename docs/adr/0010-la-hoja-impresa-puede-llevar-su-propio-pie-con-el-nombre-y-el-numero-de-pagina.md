@@ -1,6 +1,6 @@
-# 10. La hoja impresa lleva su propio pie con el nombre y el número de página
+# 10. La hoja impresa puede llevar su propio pie con el nombre y el número de página
 
-Fecha: 2026-11-05 · Estado: aceptado
+Fecha: 2026-11-05 (revisado el mismo día: pasa a ser opcional) · Estado: aceptado
 
 ## Contexto
 
@@ -13,25 +13,31 @@ aplicación.
 
 ## Decisión
 
-Al imprimir (`prepararPieDeImpresion`, en el botón y en `beforeprint`), la
-página añade una hoja de estilo con cajas de margen de `@page`:
-`@bottom-left` con el nombre del documento y `@bottom-right` con
-`counter(page) " / " counter(pages)`, en la letra de la hoja, a 9 pt y en
-gris. Un documento sin nombre propio no imprime «Documento sin título»: solo
-el número.
+El pie es un ajuste del formato, **Pie al imprimir** (`printFooter`, clave
+`print-footer` del bloque de metadatos), con tres valores: «Ninguno»,
+«Número de página» y «Nombre y número de página». Como los demás, se fija en
+las opciones generales o en cada documento. De partida vale «Ninguno», que es
+como se imprimía antes de existir el ajuste.
+
+Al imprimir (`prepararPieDeImpresion`, en el botón y en `beforeprint`), si el
+documento pide pie, la página añade una hoja de estilo con cajas de margen de
+`@page`: `@bottom-right` con `counter(page) " / " counter(pages)` y, con
+«Nombre y número de página», `@bottom-left` con el nombre del documento, en la
+letra de la hoja, a 9 pt y en gris. Un documento sin nombre propio no imprime
+«Documento sin título»: solo el número.
 
 Mientras dura la impresión, `document.title` es el nombre del documento, que
 es lo que el navegador pone en su encabezado si se deja y lo que propone como
 nombre del PDF. Vuelve con `afterprint` o al acabar la impresión de la
 aplicación.
 
-Va siempre, sin opción: un número de página en el pie es lo esperable en
-cualquier documento impreso.
 
 ## Alternativas descartadas
 
-- **Una opción para activarlo.** Sería un control más para algo que casi todo
-  el mundo quiere; se añadirá si alguien necesita imprimir sin pie.
+- **Ponerlo siempre, sin opción.** Fue la primera versión (3.5.2), y no todo
+  el mundo quiere un pie en el papel.
+- **Activarlo de partida.** Cambiaría lo que imprime quien ya usaba la
+  aplicación sin haberlo pedido.
 - **Cambiar la dirección que imprime el navegador.** No se puede desde la
   página: `history.replaceState` solo cambia la ruta dentro del mismo origen, y
   el origen es lo que sobra.
@@ -40,8 +46,8 @@ cualquier documento impreso.
 
 ## Consecuencias
 
-- En Chrome, Edge y la aplicación de Windows sale el pie sin tocar el cuadro de
-  impresión.
+- En Chrome, Edge y la aplicación de Windows, quien lo elige tiene el pie sin
+  tocar el cuadro de impresión; quien no, imprime como siempre.
 - Con la casilla del navegador marcada, salen los dos pies: el del navegador
   pegado al borde y el de la hoja alineado con el texto. No se solapan, pero el
   número sale dos veces.
@@ -65,6 +71,8 @@ cualquier documento impreso.
 
 ## Validación
 
-Prueba de navegador `al imprimir, el pie lleva el nombre del documento y el
-número de página`, en Chromium y Firefox, y el PDF de prueba descrito arriba.
+Prueba de navegador `al imprimir, el pie lleva lo que pide el documento: nada,
+el número o el nombre y el número`, en Chromium y Firefox, que también elige el
+valor en el desplegable y comprueba que llega al Markdown; prueba unitaria del
+ajuste en `document-format.test.mjs`, y el PDF de prueba descrito arriba.
 La aplicación de Windows se comprueba en una máquina virtual con Windows 11.

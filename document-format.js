@@ -29,6 +29,12 @@
   const ALIGNMENTS = ['left', 'justify', 'right'];
   const FONT_KINDS = ['serif', 'sans', 'mono'];
   const ORIENTATIONS = ['portrait', 'landscape'];
+  /*
+    El pie que la hoja pone al imprimir: nada, el número de página, o el nombre
+    del documento y el número. Es cosa del papel que sale del navegador; los
+    formatos de oficina no lo reciben.
+  */
+  const PRINT_FOOTERS = ['none', 'page', 'name'];
 
   /*
     Familias genéricas en vez de nombres sueltos: cada formato de salida entiende
@@ -97,6 +103,7 @@
     indent: '',
     hyphenate: '',
     pageBreakBeforeH1: '',
+    printFooter: '',
   };
 
   function marginKey(side) {
@@ -170,6 +177,9 @@
       indent: normalizeSwitch(source.indent),
       hyphenate: normalizeSwitch(source.hyphenate),
       pageBreakBeforeH1: normalizeSwitch(source.pageBreakBeforeH1),
+      printFooter: PRINT_FOOTERS.includes(String(source.printFooter ?? '').trim().toLowerCase())
+        ? String(source.printFooter).trim().toLowerCase()
+        : '',
     };
     MARGIN_SIDES.forEach((side) => {
       format[marginKey(side)] = normalizeNumber(source[marginKey(side)], {
@@ -211,6 +221,7 @@
     ['indent', 'indent'],
     ['hyphenate', 'hyphenate'],
     ['pageBreakBeforeH1', 'pagebreak-before-h1'],
+    ['printFooter', 'print-footer'],
   ];
 
   const UNITS = { fontSize: 'pt', marginTop: 'cm', marginRight: 'cm', marginBottom: 'cm', marginLeft: 'cm' };
@@ -474,6 +485,7 @@
     ALIGNMENTS,
     FONT_KINDS,
     ORIENTATIONS,
+    PRINT_FOOTERS,
     FONT_STACKS,
     PAPER_SIZES,
     MARGIN_SIDES,

@@ -138,7 +138,7 @@ A lupa (ou `Ctrl+F`) abre o buscador. Resalta todas as coincidencias, `Enter` sa
 Xunto ao contador de caracteres hai un botón co idioma do documento (`ES`, `CA`...). Ao premelo ábrese **Este documento**, con dúas lapelas:
 
 * **Documento**: idioma, autor, índice automático e numeración de apartados.
-* **Formato**: aliñamento, tipo e tamaño de letra, interliñado, tamaño de papel, marxes e sangría.
+* **Formato**: aliñamento, tipo e tamaño de letra, interliñado, tamaño de papel, marxes, sangría e pé ao imprimir.
 
 As marxes da páxina fíxanse aquí. Un `<style>` escrito no documento cambia o aspecto do texto, como a cor ou o fondo, pero só dentro da folla, e non move as marxes nin as medidas da páxina. O HTML exportado lévao tal cal.
 
@@ -157,7 +157,7 @@ Todo o que fixes gárdase dentro do propio `.md`, nunhas liñas de metadatos ao 
 * **EPUB**: libro dixital compatible con lectores EPUB 3.
 * **HTML**: páxina web autónoma, cos estilos e as fórmulas dentro.
 * **TEX (LaTeX)**: un `.tex` completo, listo para compilar.
-* **PDF**: abre o diálogo de impresión («Gardar como PDF»); sae exactamente o que ves en pantalla. En Chrome, Edge e a aplicación de Windows, ao pé de cada páxina van o nome do documento e o número de páxina, sen marcar a caixa de cabeceira e pé do navegador. Firefox e Safari dan o número de páxina con esa caixa; nas aplicacións de macOS e Linux este pé non sae.
+* **PDF**: abre o diálogo de impresión («Gardar como PDF»); sae exactamente o que ves en pantalla. Con **Pé ao imprimir**, no formato do documento, cada páxina leva ao pé o número de páxina, ou o nome do documento e o número, sen marcar a caixa de cabeceira e pé do navegador. Sae en Chrome, Edge e a aplicación de Windows; Firefox e Safari só dan o número con esa caixa, e nas aplicacións de macOS e Linux este pé non sae.
 
 O botón de copiar, xunto a Exportar, leva o contido ao portapapeis en Markdown, HTML ou LaTeX, sen xerar ningún ficheiro.
 

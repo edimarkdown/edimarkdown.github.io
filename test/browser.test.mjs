@@ -2746,6 +2746,7 @@ test('los ajustes del documento se guardan y se recuperan al volver', async (t) 
         indent: '',
         hyphenate: '',
         pageBreakBeforeH1: 'no',
+        printFooter: 'none',
       },
     }
   );
@@ -3814,8 +3815,8 @@ test('el formato del documento se escribe en el archivo y se ve en la vista prev
   );
   assert.deepEqual(
     await page.locator('#doc-format-fields .document-format-group').nth(1).locator('label').allTextContents(),
-    ['Tamaño de papel', 'Orientación', 'Cada H1 empieza en página nueva', 'Superior', 'Derecho', 'Inferior', 'Izquierdo'],
-    'papel, orientación, salto y márgenes deben quedar juntos',
+    ['Tamaño de papel', 'Orientación', 'Cada H1 empieza en página nueva', 'Pie al imprimir', 'Superior', 'Derecho', 'Inferior', 'Izquierdo'],
+    'papel, orientación, salto, pie y márgenes deben quedar juntos',
   );
   await page.locator('#doc-format-fields-align').selectOption('justify');
   await page.locator('#doc-format-fields-font').selectOption('serif');
@@ -8448,31 +8449,50 @@ test('un <style> del documento se queda en la hoja y vuelve entero al Markdown',
   assert.doesNotMatch(vuelta.html, /data-edimark-css|#html-output/);
 });
 
-test('al imprimir, el pie lleva el nombre del documento y el número de página', async (t) => {
+test('al imprimir, el pie lleva lo que pide el documento: nada, el número o el nombre y el número', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());
   const tituloDeLaApp = await page.title();
+  const imprimir = async () => {
+    await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+    const estado = await page.evaluate(() => ({
+      titulo: document.title,
+      css: document.getElementById('doc-print-footer-style').textContent,
+    }));
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    return estado;
+  };
+  // De partida no hay pie, como antes de existir la opción.
   await page.evaluate(() => { newDoc('informe "final".md', '# Informe\n\nTexto.'); });
-  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
-  const conNombre = await page.evaluate(() => ({
-    titulo: document.title,
-    css: document.getElementById('doc-print-footer-style').textContent,
-  }));
-  assert.equal(conNombre.titulo, 'informe "final".md');
-  assert.match(conNombre.css, /@bottom-left \{ content: "informe \\"final\\"\.md";/);
-  assert.match(conNombre.css, /@bottom-right \{ content: counter\(page\) " \/ " counter\(pages\);/);
-  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  const sinPie = await imprimir();
+  assert.equal(sinPie.css, '');
+  assert.equal(sinPie.titulo, 'informe "final".md');
   assert.equal(await page.title(), tituloDeLaApp);
+
+  await page.evaluate(() => { markdownEditor.setValue('---\nprint-footer: "page"\n---\n\n# Informe\n\nTexto.'); });
+  const soloNumero = await imprimir();
+  assert.doesNotMatch(soloNumero.css, /@bottom-left/);
+  assert.match(soloNumero.css, /@bottom-right \{ content: counter\(page\) " \/ " counter\(pages\);/);
+
+  await page.evaluate(() => { markdownEditor.setValue('---\nprint-footer: "name"\n---\n\n# Informe\n\nTexto.'); });
+  const conNombre = await imprimir();
+  assert.match(conNombre.css, /@bottom-left \{ content: "informe \\"final\\"\.md";/);
+  assert.match(conNombre.css, /@bottom-right/);
+
   // Sin nombre propio no se imprime «Documento sin título»: solo el número.
-  await page.evaluate(() => { newDoc('', 'Texto.'); });
-  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
-  const sinNombre = await page.evaluate(() => ({
-    titulo: document.title,
-    css: document.getElementById('doc-print-footer-style').textContent,
-  }));
+  await page.evaluate(() => { newDoc('', '---\nprint-footer: "name"\n---\n\nTexto.'); });
+  const sinNombre = await imprimir();
   assert.equal(sinNombre.titulo, tituloDeLaApp);
   assert.doesNotMatch(sinNombre.css, /@bottom-left/);
   assert.match(sinNombre.css, /@bottom-right/);
+
+  // El desplegable del formato escribe la opción en el documento.
+  await page.locator('#doc-format-toolbar-btn').click();
+  await page.locator('#doc-format-tab-format').click();
+  assert.equal(await page.locator('#doc-format-fields-print-footer').inputValue(), 'name');
+  await page.locator('#doc-format-fields-print-footer').selectOption('page');
+  await page.locator('#doc-format-save-btn').click();
+  assert.match(await page.evaluate(() => markdownEditor.getValue()), /print-footer: "page"/);
 });
 
 test('un Markdown guardado con marca BOM abre con su primer título', async (t) => {
