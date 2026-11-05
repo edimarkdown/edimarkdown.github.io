@@ -26,6 +26,7 @@ const appFiles = [
   'manual-eu.md',
   'manual-gl.md',
   'manual.md',
+  'markup-safety.js',
   'mermaid-diagrams.js',
   'odt-formulas.js',
   'office-format.js',

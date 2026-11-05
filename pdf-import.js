@@ -1,4 +1,4 @@
-import { stripUnsafeMarkup } from './pandoc-prepare.js';
+import { stripUnsafeMarkup } from './markup-safety.js';
 
 let active = false;
 const OCR_LANGUAGES = new Set(['spa', 'eng', 'cat', 'glg', 'eus']);
