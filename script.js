@@ -533,9 +533,16 @@ function cloneSelection(selection) {
     return { start: selection.start, end: selection.end };
 }
 
+/*
+  Además de los saltos de línea, la marca de orden de bytes del principio. La
+  escriben el Bloc de notas antiguo, PowerShell y otros programas de Windows al
+  guardar en UTF-8; no se ve, pero queda delante del primer carácter, y un
+  `# Título` en la primera línea dejaba de ser un título. Todo texto que entra
+  en un documento pasa por aquí.
+*/
 function normalizeNewlines(str) {
     if (typeof str !== 'string' || str.length < 1) return typeof str === 'string' ? str : '';
-    return str.replace(/\r\n?/g, '\n');
+    return str.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
 }
 
 function removeAttributes(node, attrs) {

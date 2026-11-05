@@ -8474,3 +8474,17 @@ test('al imprimir, el pie lleva el nombre del documento y el número de página'
   assert.doesNotMatch(sinNombre.css, /@bottom-left/);
   assert.match(sinNombre.css, /@bottom-right/);
 });
+
+test('un Markdown guardado con marca BOM abre con su primer título', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  await page.locator('#file-input').setInputFiles({
+    name: 'con-bom.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('# Informe de prova\r\n\r\nText del document.\r\n')]),
+  });
+  await page.locator('#html-output h1').filter({ hasText: 'Informe de prova' }).waitFor();
+  const md = await page.evaluate(() => markdownEditor.getValue());
+  assert.equal(md.charCodeAt(0), '#'.charCodeAt(0), 'la marca BOM sigue delante del texto');
+  assert.equal(await page.locator('.tab.active .tab-name, .tab[aria-selected="true"] .tab-name').first().textContent(), 'con-bom.md');
+});
