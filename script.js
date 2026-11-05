@@ -4961,8 +4961,169 @@ function whenImageSettles(img) {
 
 /* Las imágenes relativas se montan sin src: insertarlas primero con su ruta
    iniciaría una petición HTTP antes de recuperar la carpeta o IndexedDB. */
+/*
+  Los estilos que trae el documento, solo para la hoja.
+
+  Un `<style>` escrito en el Markdown llegaba a la página tal cual, y la página
+  es la aplicación entera: `body { margin-left: 3cm }` desplazaba los menús,
+  el editor y todo lo demás, no el documento. Aquí cada regla se reescribe para
+  que alcance solo a `#html-output`: `html`, `:root` y `body` pasan a ser la
+  propia hoja y cualquier otro selector se busca dentro de ella.
+
+  De lo que se dice de la página entera se queda lo que es aspecto —color,
+  fondo, y la letra que no fijen las opciones del documento, que mandan porque
+  son lo que reciben los demás formatos— y se deja fuera lo que es geometría (márgenes, rellenos,
+  medidas, posición, columnas): la hoja es el papel, y su tamaño y sus márgenes
+  los dicen las opciones del documento, que son lo que se imprime y lo que
+  reciben DOCX, ODT y LaTeX. Por lo mismo se quedan fuera los `@page`: en
+  pantalla la hoja no los seguiría y el papel saldría distinto de lo que se ve.
+
+  El texto original viaja en `data-edimark-css` y vuelve a su sitio en
+  `buildHtmlWithTex`, antes de que la hoja se convierta en Markdown o en HTML:
+  el documento sigue diciendo lo que el autor escribió, y el HTML exportado lo
+  lleva entero.
+*/
+const ROOT_STYLE_SELECTOR = /^(?:html|:root)(?:\s*>?\s*body)?(?![\w-])|^body(?![\w-])/i;
+const SHEET_GEOMETRY_PROPERTY = /^(?:margin|padding|width|min-width|max-width|height|min-height|max-height|inline-size|block-size|min-inline-size|max-inline-size|min-block-size|max-block-size|position|top|right|bottom|left|inset|transform|translate|scale|rotate|zoom|display|float|overflow|box-sizing|columns|column-count|column-width|column-gap|column-rule)(?:-|$)/;
+
+function splitSelectorList(selectorText) {
+    const parts = [];
+    let depth = 0;
+    let quote = '';
+    let current = '';
+    for (const char of selectorText) {
+        if (quote) {
+            if (char === quote) quote = '';
+        } else if (char === '"' || char === "'") {
+            quote = char;
+        } else if (char === '(' || char === '[') {
+            depth += 1;
+        } else if (char === ')' || char === ']') {
+            depth = Math.max(0, depth - 1);
+        } else if (char === ',' && depth === 0) {
+            parts.push(current.trim());
+            current = '';
+            continue;
+        }
+        current += char;
+    }
+    if (current.trim()) parts.push(current.trim());
+    return parts;
+}
+
+function scopeDocumentStyleRules(rules) {
+    const out = [];
+    Array.from(rules || []).forEach(rule => {
+        if (typeof CSSPageRule !== 'undefined' && rule instanceof CSSPageRule) return;
+        if (typeof CSSStyleRule !== 'undefined' && rule instanceof CSSStyleRule) {
+            const raiz = [];
+            const dentro = [];
+            splitSelectorList(rule.selectorText).forEach(selector => {
+                if (ROOT_STYLE_SELECTOR.test(selector)) {
+                    // `body` es la hoja; `body p`, lo que hay dentro de ella.
+                    const acotado = selector.replace(ROOT_STYLE_SELECTOR, '#html-output');
+                    (/^#html-output[^\s>+~]*$/.test(acotado) ? raiz : dentro).push(acotado);
+                } else {
+                    dentro.push(`#html-output ${selector}`);
+                }
+            });
+            const anidadas = rule.cssRules && rule.cssRules.length
+                ? Array.from(rule.cssRules).map(inner => inner.cssText).join(' ')
+                : '';
+            const declaraciones = (filtrar) => {
+                const style = rule.style;
+                const lista = [];
+                for (let i = 0; i < style.length; i += 1) {
+                    const nombre = style.item(i);
+                    if (filtrar && SHEET_GEOMETRY_PROPERTY.test(nombre)) continue;
+                    const prioridad = style.getPropertyPriority(nombre);
+                    lista.push(`${nombre}: ${style.getPropertyValue(nombre)}${prioridad ? ` !${prioridad}` : ''};`);
+                }
+                return lista.join(' ');
+            };
+            if (dentro.length) out.push(`${dentro.join(', ')} { ${declaraciones(false)} ${anidadas} }`);
+            const deRaiz = declaraciones(true);
+            const anidadasDeRaiz = dentro.length ? '' : anidadas;
+            if (raiz.length && (deRaiz || anidadasDeRaiz)) out.push(`${raiz.join(', ')} { ${deRaiz} ${anidadasDeRaiz} }`);
+            return;
+        }
+        if (rule.cssRules && typeof rule.conditionText === 'string') {
+            const tipo = typeof CSSMediaRule !== 'undefined' && rule instanceof CSSMediaRule ? '@media'
+                : typeof CSSSupportsRule !== 'undefined' && rule instanceof CSSSupportsRule ? '@supports'
+                : (typeof CSSContainerRule !== 'undefined' && rule instanceof CSSContainerRule ? '@container' : '');
+            if (tipo) {
+                const dentroDelBloque = scopeDocumentStyleRules(rule.cssRules);
+                if (dentroDelBloque) out.push(`${tipo} ${rule.conditionText} { ${dentroDelBloque} }`);
+                return;
+            }
+        }
+        if (rule.cssRules && typeof CSSLayerBlockRule !== 'undefined' && rule instanceof CSSLayerBlockRule) {
+            out.push(`@layer ${rule.name} { ${scopeDocumentStyleRules(rule.cssRules)} }`);
+            return;
+        }
+        // @font-face, @keyframes, @counter-style…: no alcanzan a nada por sí solas.
+        if (typeof CSSImportRule !== 'undefined' && rule instanceof CSSImportRule) return;
+        out.push(rule.cssText);
+    });
+    return out.join('\n');
+}
+
+function scopeDocumentStyleText(css) {
+    if (typeof CSSStyleSheet !== 'function') return '';
+    try {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(css);
+        return scopeDocumentStyleRules(sheet.cssRules);
+    } catch (error) {
+        // Sin hoja construible no hay forma segura de acotarla: mejor sin estilo.
+        return '';
+    }
+}
+
+function scopeDocumentStyles(root) {
+    if (!root || typeof root.querySelectorAll !== 'function') return root;
+    root.querySelectorAll('style').forEach(style => {
+        if (style.hasAttribute('data-edimark-css')) return;
+        const original = style.textContent;
+        style.setAttribute('data-edimark-css', original);
+        style.textContent = scopeDocumentStyleText(original);
+    });
+    return root;
+}
+
+function restoreOriginalStyles(root) {
+    if (!root || typeof root.querySelectorAll !== 'function') return root;
+    root.querySelectorAll('style[data-edimark-css]').forEach(style => {
+        style.textContent = style.getAttribute('data-edimark-css');
+        style.removeAttribute('data-edimark-css');
+    });
+    return root;
+}
+
+/*
+  Turndown junta los espacios de todo texto que no esté en un `<pre>` antes de
+  aplicar ninguna regla, y el CSS es texto: un estilo escrito en diez líneas
+  volvía al Markdown en una sola. Cada `<style>` cruza la conversión aparte,
+  como las fórmulas, y la regla `edimarkStyle` lo devuelve tal cual.
+*/
+let documentStylesInTransit = [];
+
+function turndownKeepingDocumentStyles(html) {
+    documentStylesInTransit = [];
+    const marcado = String(html || '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, bloque => {
+        documentStylesInTransit.push(bloque);
+        // Con algo dentro: Turndown salta las reglas con un elemento vacío.
+        return `<style data-edimark-style="${documentStylesInTransit.length - 1}">.</style>`;
+    });
+    try {
+        return turndownService.turndown(marcado);
+    } finally {
+        documentStylesInTransit = [];
+    }
+}
+
 function previewFragmentFromHtml(html) {
-    const fragment = fragmentFromHtml(html);
+    const fragment = scopeDocumentStyles(fragmentFromHtml(html));
     if (assetPathUtils) {
         fragment.querySelectorAll('img[src]').forEach(img => {
             const source = img.getAttribute('src');
@@ -5880,7 +6041,7 @@ function updateMarkdown() {
     if (turndownService && canUpdateMarkdown) {
         const sanitizedPreview = sanitizeHtmlForMarkdown(previewHtml);
         const { text: previewWithoutMath, segments: previewMathSegments } = protectMathSegments(sanitizedPreview);
-        let markdownFromPreview = turndownService.turndown(previewWithoutMath);
+        let markdownFromPreview = turndownKeepingDocumentStyles(previewWithoutMath);
         markdownFromPreview = restoreMathSegments(markdownFromPreview, previewMathSegments);
         markdownFromPreview = normalizeMathEscapes(markdownFromPreview);
         const currentMarkdown = markdownEditor.getValue();
@@ -8450,7 +8611,7 @@ function labelTaskCheckbox(input) {
 function buildHtmlWithTex() {
   const htmlOutput = document.getElementById('html-output');
   if (!htmlOutput) return '';
-  const clone = restoreOriginalEmbeds(restoreOriginalImageSources(htmlOutput.cloneNode(true)));
+  const clone = restoreOriginalStyles(restoreOriginalEmbeds(restoreOriginalImageSources(htmlOutput.cloneNode(true))));
   // El diagrama vuelve a ser su bloque de código: es lo que guarda el Markdown.
   if (window.EdiMarkMermaid) window.EdiMarkMermaid.restore(clone);
   /*
@@ -11149,6 +11310,21 @@ window.onload = async () => {
             if (MEDIOS_CRUDOS.has(node.nodeName)) return true;
             return node.nodeName === 'FIGURE'
                 && Boolean(node.querySelector('audio, video, iframe, embed, object'));
+        });
+        /*
+          Un `<style>` del documento vuelve como lo que es. Sin esta regla,
+          Turndown tomaba la etiqueta por un elemento desconocido y dejaba solo
+          su contenido: el CSS acababa en el Markdown como un párrafo de texto
+          en cuanto se escribía una letra en la hoja.
+        */
+        turndownService.addRule('edimarkStyle', {
+            filter: 'style',
+            replacement: (content, node) => {
+                const guardado = documentStylesInTransit[Number(node.getAttribute('data-edimark-style'))];
+                // Un `<style>` que no sale de la hoja viene pegado de otra
+                // página o de Word: su CSS no es del documento.
+                return guardado ? `\n\n${guardado}\n\n` : '';
+            },
         });
         /*
           La figura vuelve a ser una imagen sola cuyo texto es el pie. Se lee el

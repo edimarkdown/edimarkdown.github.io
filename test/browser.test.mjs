@@ -8413,3 +8413,37 @@ test('mudanza.html recibe los documentos de la dirección anterior', {
   }));
   assert.deepEqual(imagenes, ['viejo:img/a.png']);
 });
+
+test('un <style> del documento se queda en la hoja y vuelve entero al Markdown', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  const md = '<style>\nbody {\n  margin-left: 3cm; color: rgb(0, 0, 128);\n}\nbody p { margin: 0; }\np, .x { color: rgb(255, 0, 0); }\n@page { margin: 1cm; }\n</style>\n\n### Salario\n\nTexto del documento.\n';
+  await page.evaluate(m => { markdownEditor.setValue(m); updateHtml(); }, md);
+  const hoja = await page.evaluate(() => {
+    const sheet = document.getElementById('html-output');
+    return {
+      app: getComputedStyle(document.body).marginLeft,
+      sheetColor: getComputedStyle(sheet).color,
+      pColor: getComputedStyle(sheet.querySelector('p')).color,
+      pMargin: getComputedStyle(sheet.querySelector('p')).marginTop,
+      ajeno: getComputedStyle(document.querySelector('#markdown-editor-container, header, nav') || document.documentElement).marginLeft,
+      css: sheet.querySelector('style').textContent,
+    };
+  });
+  // La aplicación no se entera; la hoja recibe el aspecto, no la geometría.
+  assert.equal(hoja.app, '0px');
+  assert.equal(hoja.sheetColor, 'rgb(0, 0, 128)');
+  assert.equal(hoja.pColor, 'rgb(255, 0, 0)');
+  assert.equal(hoja.pMargin, '0px');
+  assert.doesNotMatch(hoja.css, /3cm|@page/);
+  assert.match(hoja.css, /#html-output p, #html-output \.x/);
+  const vuelta = await page.evaluate(() => {
+    document.getElementById('html-output').focus();
+    forceMarkdownUpdate = true;
+    updateMarkdown();
+    return { md: markdownEditor.getValue(), html: buildHtmlWithTex() };
+  });
+  assert.equal(vuelta.md.trim(), md.trim(), 'el <style> no volvió tal cual al editar la hoja');
+  assert.ok(vuelta.html.includes('margin-left: 3cm'), 'lo que sale de la hoja debe llevar el CSS original');
+  assert.doesNotMatch(vuelta.html, /data-edimark-css|#html-output/);
+});
