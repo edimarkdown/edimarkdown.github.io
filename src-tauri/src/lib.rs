@@ -27,13 +27,40 @@ fn markdown_path(raw: &str, cwd: &Path) -> Option<PathBuf> {
     Some(absolute.canonicalize().unwrap_or(absolute))
 }
 
+/// La ruta que se entrega a la ventana. En Windows, `canonicalize` devuelve la
+/// forma extendida (`\\?\C:\Users\…`): vale para leer el disco, pero el
+/// nombre del documento salía vacío —la interfaz cortaba en el `?` como si
+/// fuera una dirección web— y el mismo archivo abierto con doble clic y
+/// soltado parecía otro. Se devuelve la forma de siempre, salvo cuando la
+/// extendida hace falta de verdad: rutas de 260 caracteres o más.
+fn path_for_frontend(path: &Path) -> String {
+    const MAX_PATH: usize = 260;
+    let text = path.to_string_lossy();
+    let plain = if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        Some(format!(r"\\{rest}"))
+    } else if let Some(rest) = text.strip_prefix(r"\\?\") {
+        let bytes = rest.as_bytes();
+        let is_drive = bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && bytes[2] == b'\\';
+        is_drive.then(|| rest.to_string())
+    } else {
+        None
+    };
+    match plain {
+        Some(plain) if plain.len() < MAX_PATH => plain,
+        _ => text.into_owned(),
+    }
+}
+
 fn markdown_paths<I>(args: I, cwd: &Path) -> Vec<String>
 where
     I: IntoIterator<Item = String>,
 {
     args.into_iter()
         .filter_map(|arg| markdown_path(&arg, cwd))
-        .map(|path| path.to_string_lossy().into_owned())
+        .map(|path| path_for_frontend(&path))
         .collect()
 }
 
@@ -952,8 +979,29 @@ pub fn run() {
 mod tests {
     use super::{
         decode_ipc_header, document_asset_bytes, document_resource_text, droppable_extension,
-        markdown_target_path, write_document_asset_bytes, write_document_resource_bytes,
+        markdown_target_path, path_for_frontend, write_document_asset_bytes,
+        write_document_resource_bytes,
     };
+
+    #[test]
+    fn la_ruta_extendida_de_windows_llega_a_la_ventana_en_su_forma_de_siempre() {
+        use std::path::Path;
+        assert_eq!(
+            path_for_frontend(Path::new(r"\\?\C:\Users\Ana\Prova Enrique\informe.md")),
+            r"C:\Users\Ana\Prova Enrique\informe.md"
+        );
+        assert_eq!(
+            path_for_frontend(Path::new(r"\\?\UNC\servidor\carpeta\tema.md")),
+            r"\\servidor\carpeta\tema.md"
+        );
+        assert_eq!(path_for_frontend(Path::new("/home/ana/tema.md")), "/home/ana/tema.md");
+        // Sin la forma extendida, Windows no abriría una ruta tan larga.
+        let larga = format!(r"\\?\C:\{}\tema.md", "a".repeat(300));
+        assert_eq!(path_for_frontend(Path::new(&larga)), larga);
+        // Un volumen sin letra solo tiene la forma extendida.
+        let volumen = r"\\?\Volume{12345678-1234-1234-1234-123456789abc}\tema.md";
+        assert_eq!(path_for_frontend(Path::new(volumen)), volumen);
+    }
 
     /// Carpeta de trabajo con un documento y su imagen al lado, como la de
     /// cualquier artículo.

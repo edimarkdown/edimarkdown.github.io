@@ -9,6 +9,11 @@ test('extrae el nombre de rutas de Linux, Windows y macOS', () => {
   assert.equal(fileNameFromPath('/home/juanjo/Apuntes.md'), 'Apuntes.md');
   assert.equal(fileNameFromPath('C:\\Documentos\\Tema 1.md'), 'Tema 1.md');
   assert.equal(fileNameFromPath('file:///Users/juanjo/Apuntes%20de%20clase.md'), 'Apuntes de clase.md');
+  // La forma extendida es la que entrega Windows al abrir con doble clic.
+  assert.equal(fileNameFromPath('\\\\?\\C:\\Users\\Ana\\informe de prova.md'), 'informe de prova.md');
+  // En una ruta del disco, `%` y `#` son parte del nombre.
+  assert.equal(fileNameFromPath('/home/ana/100% notas #2.md'), '100% notas #2.md');
+  assert.equal(fileNameFromPath('C:\\Temas\\tema%201.md'), 'tema%201.md');
 });
 
 test('abre un documento de texto mediante los plugins de Tauri', async () => {

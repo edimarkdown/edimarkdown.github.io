@@ -6,10 +6,19 @@
     root.EdiMarkPlatform = exported.createPlatformApi(root);
   }
 }(typeof window !== 'undefined' ? window : globalThis, function platformApiFactory(defaultRoot) {
+  /*
+    Solo una dirección lleva consulta, ancla y caracteres codificados. Una ruta
+    del disco puede tener `?` —la forma extendida de Windows, `\\?\C:\…`, que
+    es la que llega con el doble clic— y `%` o `#` en el nombre del archivo:
+    tratarla como dirección dejaba el nombre vacío o lo cambiaba.
+  */
   function fileNameFromPath(path) {
-    const raw = String(path || '').replace(/[?#].*$/, '');
+    const text = String(path || '');
+    const isUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(text);
+    const raw = isUrl ? text.replace(/[?#].*$/, '') : text;
     const segments = raw.split(/[\\/]/);
     const encodedName = segments[segments.length - 1] || '';
+    if (!isUrl) return encodedName;
     try {
       return decodeURIComponent(encodedName);
     } catch (_) {
