@@ -12328,6 +12328,8 @@ window.onload = async () => {
             preview.scrollLeft = 0;
         }
         imprimirEnClaro();
+        // Aquí y no solo en `beforeprint`: el webview puede no avisar antes.
+        prepararPieDeImpresion();
         // La espera deja que se cierren los menús antes de congelar la página.
         window.setTimeout(async () => {
             const platform = window.EdiMarkPlatform;
@@ -12340,6 +12342,7 @@ window.onload = async () => {
             } catch (error) {
                 console.warn('No se pudo imprimir:', error);
             } finally {
+                terminarPieDeImpresion();
                 if (citedPreview) updateHtml();
                 updateExportStatus('');
             }
@@ -13976,6 +13979,60 @@ window.onload = async () => {
         };
     }
     window.__paginaParaImprimir = paginaParaImprimir;
+
+    /*
+      El pie de cada página impresa: el nombre del documento a la izquierda y
+      «página / total» a la derecha, alineados con el texto.
+
+      El número de página solo salía marcando «Encabezado y pie» en el cuadro
+      del navegador, y ese pie pone a la izquierda la dirección de la página
+      —la del editor en la web, `tauri.localhost` en el escritorio—, que no
+      dice nada del papel y que una página no puede cambiar. Este pie lo dibuja
+      la propia hoja con las cajas de margen de `@page`, sin depender de esa
+      casilla. Las entienden Chrome y Edge desde la versión 131 y el webview de
+      Windows; Firefox, Safari y el webview de Linux las ignoran, y allí queda
+      el pie del navegador.
+
+      Mientras se imprime, el título de la página es también el del documento:
+      es lo que el navegador pone arriba si se deja su encabezado, y lo que
+      propone como nombre del PDF.
+    */
+    let tituloAntesDeImprimir = null;
+    function nombreParaImprimir() {
+        const doc = docs.find(d => d.id === currentId);
+        const nombre = doc && typeof doc.name === 'string' ? doc.name.trim() : '';
+        if (!nombre || nombre === getTranslation('untitled_document', 'Documento sin título')) return '';
+        return nombre;
+    }
+    function textoCss(texto) {
+        return `"${String(texto).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ')}"`;
+    }
+    function prepararPieDeImpresion() {
+        let sheet = document.getElementById('doc-print-footer-style');
+        if (!sheet) {
+            sheet = document.createElement('style');
+            sheet.id = 'doc-print-footer-style';
+            document.head.appendChild(sheet);
+        }
+        const nombre = nombreParaImprimir();
+        const hoja = document.getElementById('html-output');
+        const letra = hoja ? getComputedStyle(hoja).fontFamily : 'serif';
+        const caja = `font-family: ${letra}; font-size: 9pt; color: #555;`;
+        const izquierda = nombre ? `@bottom-left { content: ${textoCss(nombre)}; ${caja} }` : '';
+        const derecha = `@bottom-right { content: counter(page) " / " counter(pages); ${caja} }`;
+        sheet.textContent = `@media print { @page { ${izquierda} ${derecha} } }`;
+        if (nombre && tituloAntesDeImprimir === null) {
+            tituloAntesDeImprimir = document.title;
+            document.title = nombre;
+        }
+    }
+    function terminarPieDeImpresion() {
+        if (tituloAntesDeImprimir === null) return;
+        document.title = tituloAntesDeImprimir;
+        tituloAntesDeImprimir = null;
+    }
+    window.addEventListener('beforeprint', prepararPieDeImpresion);
+    window.addEventListener('afterprint', terminarPieDeImpresion);
 
     /*
       La página impresa, dicha en `@page`: el papel del documento y sus

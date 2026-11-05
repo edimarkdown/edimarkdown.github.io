@@ -8447,3 +8447,30 @@ test('un <style> del documento se queda en la hoja y vuelve entero al Markdown',
   assert.ok(vuelta.html.includes('margin-left: 3cm'), 'lo que sale de la hoja debe llevar el CSS original');
   assert.doesNotMatch(vuelta.html, /data-edimark-css|#html-output/);
 });
+
+test('al imprimir, el pie lleva el nombre del documento y el número de página', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  const tituloDeLaApp = await page.title();
+  await page.evaluate(() => { newDoc('informe "final".md', '# Informe\n\nTexto.'); });
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  const conNombre = await page.evaluate(() => ({
+    titulo: document.title,
+    css: document.getElementById('doc-print-footer-style').textContent,
+  }));
+  assert.equal(conNombre.titulo, 'informe "final".md');
+  assert.match(conNombre.css, /@bottom-left \{ content: "informe \\"final\\"\.md";/);
+  assert.match(conNombre.css, /@bottom-right \{ content: counter\(page\) " \/ " counter\(pages\);/);
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  assert.equal(await page.title(), tituloDeLaApp);
+  // Sin nombre propio no se imprime «Documento sin título»: solo el número.
+  await page.evaluate(() => { newDoc('', 'Texto.'); });
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  const sinNombre = await page.evaluate(() => ({
+    titulo: document.title,
+    css: document.getElementById('doc-print-footer-style').textContent,
+  }));
+  assert.equal(sinNombre.titulo, tituloDeLaApp);
+  assert.doesNotMatch(sinNombre.css, /@bottom-left/);
+  assert.match(sinNombre.css, /@bottom-right/);
+});
