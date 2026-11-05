@@ -325,6 +325,20 @@ def link_footnotes(markdown, notes):
     return '\n'.join(out)
 
 
+# The converter writes a superscript as a span of its own and joins spans with
+# a space, so a footnote call or an exponent arrives apart from the word it
+# belongs to and from the punctuation after it: «química [^1] .», «m <sup>2</sup>».
+# A superscript always hangs from what precedes it; a definition at the start
+# of a line (`[^1]: …`) has nothing before it and is left alone.
+SUPERSCRIPT_BEFORE = re.compile(r'(?<=\S)[ \t]+(?=<sup>|\[\^[^\]\s]+\](?!:))')
+SUPERSCRIPT_AFTER = re.compile(r'(</sup>|\[\^[^\]\s]+\](?!:))[ \t]+(?=[.,;:!?)\]»”’])')
+
+
+def attach_superscripts(markdown):
+    """Join footnote calls and exponents to their word and their punctuation."""
+    return SUPERSCRIPT_AFTER.sub(r'\1', SUPERSCRIPT_BEFORE.sub('', markdown))
+
+
 def table_cells(line):
     """The cells of a Markdown table row, or None if the line is not one."""
     if len(line) < 2 or not line.startswith('|') or not line.endswith('|'):
@@ -942,8 +956,8 @@ def convert_pdf(data, options, progress=None, emit_image=None):
                 chunks.append(page_markdown)
             report('converting', done, total)
         return {
-            'markdown': link_footnotes(
-                ''.join(chunks), {k: v for k, v in notes.items() if v is not None}),
+            'markdown': attach_superscripts(link_footnotes(
+                ''.join(chunks), {k: v for k, v in notes.items() if v is not None})),
             'pages': total,
             'textPages': text_pages,
             'mathRegions': math_regions,

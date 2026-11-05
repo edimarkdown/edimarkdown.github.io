@@ -7610,6 +7610,9 @@ test('PDF real: opciones, columnas, tablas, imágenes y cancelación sin modific
   );
   assert.equal(await preview.locator('sup.footnote-reference').count(), 3, text);
   assert.match(text, /se mide en m\s*2 y no cambia/);
+  // El conversor deja un espacio a cada lado del superíndice: la llamada y el
+  // exponente tienen que quedar pegados a su palabra.
+  assert.match(text, /aula\d se mide en m2 y no cambia/, text);
   assert.doesNotMatch(text, /aula20|Materia21|pie22/, text);
 
   /*

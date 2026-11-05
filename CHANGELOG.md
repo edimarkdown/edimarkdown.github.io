@@ -4,6 +4,10 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.4] - 2026-11-05
+
+- Al importar un PDF, las llamadas de nota al pie y los exponentes quedan pegados a su palabra y a la puntuación que los sigue. Antes salían separados por espacios: «química ¹ .», «m ²».
+
 ## [3.5.3] - 2026-11-05
 
 - El pie de las páginas impresas es una opción: **Pie al imprimir**, en el formato del documento, con «Ninguno», «Número de página» o «Nombre y número de página». Se puede fijar para todos los documentos en las opciones generales o para uno solo. De partida no hay pie, como se imprimía hasta la 3.5.1; en la 3.5.2 salía siempre.
