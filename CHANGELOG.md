@@ -4,6 +4,10 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.5] - 2026-11-08
+
+- Al imprimir y en la hoja, una lista que no cabe en lo que queda de página empieza en ella y sigue en la siguiente, partida entre dos puntos. Antes, si era más corta que una página, bajaba entera y dejaba la anterior con un hueco en blanco de hasta media hoja. Cada punto sigue entero.
+
 ## [3.5.4] - 2026-11-05
 
 - Al importar un PDF, las llamadas de nota al pie y los exponentes quedan pegados a su palabra y a la puntuación que los sigue. Antes salían separados por espacios: «química ¹ .», «m ²».

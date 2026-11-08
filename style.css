@@ -1235,6 +1235,17 @@ body.desktop-mode .markdown-textarea {
         break-inside: auto;
     }
     /*
+      Una lista se parte entre sus puntos aunque la vista previa no esté
+      repartida en páginas (`bloquesPaginables` la abre siempre): entera, si
+      no cabía en lo que quedaba de hoja, bajaba y dejaba un hueco en blanco.
+    */
+    #html-output > :is(ul, ol):not([data-page-flow]) {
+        break-inside: auto;
+    }
+    #html-output > :is(ul, ol):not([data-page-flow]) > li {
+        break-inside: avoid;
+    }
+    /*
       Una tabla partida se corta entre filas, nunca dentro de una; el resto lo
       hace el papel, que repite la cabecera en cada página igual que la
       pantalla. La cabecera se queda entera: si se pudiera partir, Chromium

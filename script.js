@@ -3,7 +3,7 @@
   y src-tauri/Cargo.toml; una prueba de test/desktop-updater.test.mjs vigila que
   las cuatro coincidan.
 */
-const APP_VERSION = '3.5.4';
+const APP_VERSION = '3.5.5';
 /*
   «No volver a mostrar» vale para siempre. Hasta la 3.5.0 la clave llevaba la
   versión y el aviso volvía con cada versión nueva; quien lo descartó entonces
@@ -7961,7 +7961,7 @@ async function importFileWithPandoc(file, { index = 1, total = 1 } = {}) {
     }
     if (format === 'pdf') {
         try {
-            const { importPdf } = await import('./pdf-import.js?v=3.5.4');
+            const { importPdf } = await import('./pdf-import.js?v=3.5.5');
             const name = getSafeDocumentName(file.name);
             // Crear el documento ocurre dentro del diálogo, que se queda a la
             // vista avisando: con un informe entero no es cosa de un instante.
@@ -14362,6 +14362,16 @@ window.onload = async () => {
         ? fila.closest('table').tHead
         : null);
 
+    /*
+      Una lista se abre aunque quepa en una página: entera, si no cabía en lo
+      que quedaba de la página en curso bajaba a la siguiente y dejaba un
+      hueco en blanco de hasta media hoja.
+      Partida entre sus puntos, empieza donde toca y sigue en la página
+      siguiente, como en cualquier procesador de textos; cada punto, con lo
+      que lleve dentro, sigue entero.
+    */
+    const LISTAS = new Set(['UL', 'OL']);
+
     function bloquesPaginables(elemento, altoUtil, profundidad = 0) {
         return Array.from(elemento.children).flatMap((hijo) => {
             if (hijo.tagName === 'TABLE'
@@ -14370,7 +14380,7 @@ window.onload = async () => {
                 hijo.setAttribute('data-page-split', '');
                 return filasDeTabla(hijo);
             }
-            if (hijo.getBoundingClientRect().height <= altoUtil
+            if ((hijo.getBoundingClientRect().height <= altoUtil && !LISTAS.has(hijo.tagName))
                 || profundidad >= PROFUNDIDAD_MAXIMA
                 || !CONTENEDORES_PARTIBLES.has(hijo.tagName)
                 || !hijo.children.length) {

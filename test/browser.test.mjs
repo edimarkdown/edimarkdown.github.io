@@ -5290,6 +5290,55 @@ test('una lista, una cita o las notas más largas que la página se reparten por
 });
 
 /*
+  Una lista más corta que la página también se parte: entera, si no cabía en lo
+  que quedaba de la hoja bajaba a la siguiente y dejaba la anterior con un
+  hueco en blanco de hasta media página, en pantalla y en el papel.
+*/
+test('una lista que no cabe en lo que queda de página empieza en ella y sigue en la siguiente', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#new-tab-btn').click();
+  const documento = [
+    ...Array.from({ length: 12 }, (_, i) => `Párrafo ${i + 1} de relleno, con texto suficiente para ocupar un par de líneas de la hoja antes de la lista.`),
+    Array.from({ length: 30 }, (_, i) => `${i + 1}. Punto ${i + 1} de una lista más corta que la página.`).join('\n'),
+  ].join('\n\n');
+  await page.locator('#markdown-input').fill(documento);
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await page.waitForFunction(() => document.querySelectorAll('.page-sheet').length > 1);
+  await page.waitForFunction(() => {
+    const huella = [...document.querySelectorAll('#html-output [data-page-start]')]
+      .map(bloque => bloque.style.getPropertyValue('--page-jump')).join('|');
+    const anterior = window.__huellaDelReparto;
+    window.__huellaDelReparto = huella;
+    return anterior === huella;
+  }, null, { polling: 400 });
+
+  const enPantalla = await page.evaluate(() => {
+    const lista = document.querySelector('#html-output > ol');
+    const hoja = document.querySelector('.page-sheet').getBoundingClientRect();
+    return {
+      listaBaja: lista.hasAttribute('data-page-start'),
+      empiezaEnLaPrimera: lista.getBoundingClientRect().top < hoja.bottom,
+      corteDentro: lista.querySelectorAll(':scope > li[data-page-start]').length,
+    };
+  });
+  assert.equal(enPantalla.listaBaja, false, 'la lista entera bajó a la página siguiente');
+  assert.equal(enPantalla.empiezaEnLaPrimera, true);
+  assert.equal(enPantalla.corteDentro, 1, 'el corte no cae entre los puntos de la lista');
+
+  await page.emulateMedia({ media: 'print' });
+  const enPapel = await page.evaluate(() => ({
+    lista: getComputedStyle(document.querySelector('#html-output > ol')).breakInside,
+    punto: getComputedStyle(document.querySelector('#html-output > ol > li')).breakInside,
+  }));
+  await page.emulateMedia({ media: 'screen' });
+  assert.equal(enPapel.lista, 'auto', 'el papel mantendría la lista entera');
+  assert.equal(enPapel.punto, 'avoid', 'el papel podría partir un punto por dentro');
+});
+
+/*
   Un bloque a varias columnas no se reparte como una lista: empujar uno de sus
   puntos lo descoloca dentro de su columna, y al imprimir cada empujón era una
   página nueva con media hoja en blanco. Pasaba con una lista de comprobación a
