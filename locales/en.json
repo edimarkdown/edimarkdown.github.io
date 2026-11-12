@@ -665,6 +665,8 @@
   "doc_format_footer_none": "None",
   "doc_format_footer_page": "Page number",
   "doc_format_footer_name": "Name and page number",
+  "doc_format_print_margins_unsupported_web": "In this browser the header and footer do not print: the headers and footers option in its print dialog decides.",
+  "doc_format_print_margins_unsupported_app": "In this app the header and footer do not print.",
   "doc_format_paper_a4": "A4 (21 × 29.7 cm)",
   "doc_format_paper_letter": "Letter (21.6 × 27.9 cm)",
   "page_break_label": "Page {page}",

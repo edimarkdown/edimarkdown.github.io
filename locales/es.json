@@ -665,6 +665,8 @@
   "doc_format_footer_none": "Ninguno",
   "doc_format_footer_page": "Número de página",
   "doc_format_footer_name": "Nombre y número de página",
+  "doc_format_print_margins_unsupported_web": "En este navegador la cabecera y el pie no salen al imprimir: manda la casilla de encabezado y pie de su cuadro de impresión.",
+  "doc_format_print_margins_unsupported_app": "En esta aplicación la cabecera y el pie no salen al imprimir.",
   "doc_format_paper_a4": "A4 (21 × 29,7 cm)",
   "doc_format_paper_letter": "Carta (21,6 × 27,9 cm)",
   "page_break_label": "Página {page}",

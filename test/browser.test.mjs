@@ -8602,6 +8602,115 @@ test('en WebKit la hoja compensa la escala antigua del papel, y solo cuando el a
   assert.equal(await zoomCon(616.54), 1);
 });
 
+/*
+  La cabecera y el pie eran el único ajuste del formato que no se veía hasta
+  abrir el cuadro de impresión. La hoja los enseña en sus márgenes, pero solo
+  donde el motor los imprime: en los demás sería prometer algo que el papel no
+  lleva, y allí lo dice un aviso junto al ajuste.
+*/
+test('la hoja enseña la cabecera y el pie que saldrán en el papel, y solo donde se imprimen', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await conLaHojaATamanoReal(page);
+  const cuerpo = [
+    '<div style="height: 500px; margin: 0;">uno</div>',
+    '<div style="height: 600px; margin: 0;">dos</div>',
+  ].join('\n\n');
+  const escribir = async (metadatos) => {
+    await page.evaluate(({ texto }) => { markdownEditor.setValue(texto); }, { texto: `${metadatos}${cuerpo}` });
+    await page.waitForFunction(() => document.querySelectorAll('#html-output > div').length === 2);
+    await page.evaluate(() => window.__refreshPageBreaks());
+  };
+  const margenes = () => page.evaluate(() => [...document.querySelectorAll('.page-sheet')].map((hoja) => {
+    const textos = selector => [...hoja.querySelectorAll(`${selector} > span`)].map(trozo => trozo.textContent);
+    return { cabecera: textos('.page-sheet-header'), pie: textos('.page-sheet-footer') };
+  }));
+
+  await page.evaluate(() => { newDoc('informe.md', 'Texto.'); });
+  await escribir('---\nprint-header: "name-date"\nprint-footer: "name"\n---\n\n');
+  const imprime = await page.evaluate(() => window.__imprimeCajasDeMargen());
+  // Chromium dibuja las cajas de margen de `@page`; Firefox, no.
+  assert.equal(imprime, process.env.BROWSER !== 'firefox');
+
+  if (!imprime) {
+    assert.deepEqual(await margenes(), [{ cabecera: [], pie: [] }, { cabecera: [], pie: [] }]);
+    await page.locator('#doc-format-status').click();
+    const aviso = page.locator('#doc-format-fields [data-i18n-key="doc_format_print_margins_unsupported_web"], [data-i18n-key="doc_format_print_margins_unsupported_web"]').first();
+    await aviso.waitFor({ state: 'attached' });
+    assert.match(await aviso.textContent(), /no salen al imprimir/);
+    return;
+  }
+
+  const fecha = await page.evaluate(() => new Date().toLocaleDateString('es', { dateStyle: 'long' }));
+  assert.deepEqual(await margenes(), [
+    { cabecera: ['informe.md', fecha], pie: ['informe.md', '1 / 2'] },
+    { cabecera: ['informe.md', fecha], pie: ['informe.md', '2 / 2'] },
+  ]);
+
+  // En su sitio: alineados con la caja de texto y centrados en el margen,
+  // que es donde los pone el papel. 1,8 cm son 68,03 px.
+  const sitio = await page.evaluate(() => {
+    const hoja = document.querySelector('.page-sheet').getBoundingClientRect();
+    const caja = selector => {
+      const r = document.querySelector(selector).getBoundingClientRect();
+      return { izquierda: r.left - hoja.left, derecha: hoja.right - r.right, arriba: r.top - hoja.top, abajo: hoja.bottom - r.bottom, alto: r.height };
+    };
+    return { cabecera: caja('.page-sheet-header'), pie: caja('.page-sheet-footer') };
+  });
+  const cerca = (valor, esperado) => assert.ok(Math.abs(valor - esperado) < 0.6, `${valor} no es ${esperado}`);
+  [sitio.cabecera, sitio.pie].forEach((caja) => {
+    cerca(caja.izquierda, 68.03);
+    cerca(caja.derecha, 68.03);
+    cerca(caja.alto, 68.03);
+  });
+  cerca(sitio.cabecera.arriba, 0);
+  cerca(sitio.pie.abajo, 0);
+
+  // Van en la capa de las hojas, no en el texto: ni se editan ni pasan al Markdown.
+  assert.equal(await page.locator('#html-output .page-sheet-margin').count(), 0);
+  assert.equal(await page.evaluate(() => markdownEditor.getValue().includes('1 / 2')), false);
+  // Y no se imprimen dos veces: en el papel los pone la página, no la hoja.
+  await page.emulateMedia({ media: 'print' });
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('page-sheets')).display), 'none');
+  await page.emulateMedia({ media: 'screen' });
+
+  // Cada valor del ajuste, como en el papel: solo la fecha, a la derecha; solo
+  // el número; y sin nada, nada.
+  await escribir('---\nprint-header: "date"\n---\n\n');
+  assert.deepEqual((await margenes())[0], { cabecera: ['', fecha], pie: [] });
+  await escribir('---\nprint-footer: "page"\n---\n\n');
+  assert.deepEqual((await margenes())[1], { cabecera: [], pie: ['', '2 / 2'] });
+  await escribir('');
+  assert.deepEqual(await margenes(), [{ cabecera: [], pie: [] }, { cabecera: [], pie: [] }]);
+
+  // Al cambiar el nombre del documento, la hoja lo recoge.
+  await page.evaluate(({ texto }) => { newDoc('borrador.md', texto); }, { texto: `---\nprint-footer: "name"\n---\n\n${cuerpo}` });
+  await page.waitForFunction(() => {
+    const pie = document.querySelector('.page-sheet-footer > span');
+    return pie && pie.textContent === 'borrador.md';
+  });
+  await page.locator('.tab[aria-selected="true"] .tab-name').dblclick();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('memoria.md');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const pie = document.querySelector('.page-sheet-footer > span');
+    return pie && pie.textContent === 'memoria.md';
+  });
+
+  // Con la hoja sin sitio a los lados, el rótulo «Página N» se metería en el
+  // margen inferior, encima del número del pie: se quita.
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.waitForFunction(() => document.getElementById('page-sheets').classList.contains('tight'));
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.page-sheet-label')).display), 'none');
+
+  // Aquí no hace falta aviso: lo que se elige es lo que sale.
+  assert.equal(await page.locator('[data-i18n-key^="doc_format_print_margins_unsupported"]').count(), 0);
+});
+
 test('al imprimir, la cabecera y el pie llevan lo que pide el documento, y quitan los del navegador', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());

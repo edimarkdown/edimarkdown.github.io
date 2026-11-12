@@ -3661,6 +3661,8 @@ function startRename(tab) {
                 doc.name = newName;
                 tabNameSpan.textContent = newName;
                 saveDocsList();
+                // El nombre puede ir en la cabecera o en el pie de la hoja.
+                if (typeof window.__schedulePageBreaks === 'function') window.__schedulePageBreaks();
             }
         }
         tab.focus();
@@ -7788,6 +7790,7 @@ async function saveCurrentDocument({ saveAs = false } = {}) {
                 markdownEditor.setValue(savedContent);
             }
             doc.name = savedName;
+            if (typeof window.__schedulePageBreaks === 'function') window.__schedulePageBreaks();
             doc.filePath = result.path || doc.filePath || '';
             doc.md = savedContent;
             doc.lastSaved = savedContent;
@@ -13566,6 +13569,23 @@ window.onload = async () => {
             ['name', 'doc_format_footer_name', 'Nombre y número de página'],
         ])));
         pageGroup.appendChild(pageGrid);
+        /*
+          Donde el motor no imprime la cabecera y el pie, se dice junto al
+          ajuste: allí la hoja tampoco los enseña, y sin el aviso parecería que
+          elegirlos no hace nada. En el navegador queda su propia casilla; en
+          la aplicación no hay ninguna.
+        */
+        if (!imprimeCajasDeMargen()) {
+            const enAplicacion = Boolean(window.EdiMarkPlatform?.isDesktop);
+            const aviso = document.createElement('p');
+            aviso.className = 'mt-2 text-xs text-slate-500 dark:text-slate-400';
+            const clave = enAplicacion ? 'doc_format_print_margins_unsupported_app' : 'doc_format_print_margins_unsupported_web';
+            aviso.setAttribute('data-i18n-key', clave);
+            aviso.textContent = getTranslation(clave, enAplicacion
+                ? 'En esta aplicación la cabecera y el pie no salen al imprimir.'
+                : 'En este navegador la cabecera y el pie no salen al imprimir: manda la casilla de encabezado y pie de su cuadro de impresión.');
+            pageGroup.appendChild(aviso);
+        }
 
         const marginsBlock = document.createElement('div');
         marginsBlock.className = 'mt-4';
@@ -14072,6 +14092,54 @@ window.onload = async () => {
             return new Date().toLocaleDateString();
         }
     }
+    /*
+      Lo que llevan la cabecera y el pie de este documento, ya resuelto: el
+      papel y la vista previa lo leen de aquí, para que la hoja enseñe
+      exactamente lo que va a salir.
+    */
+    function cabeceraYPieDelDocumento() {
+        const nombre = nombreParaImprimir();
+        const formato = effectiveDocumentFormat();
+        const cabecera = ['name', 'date', 'name-date'].includes(formato.printHeader) ? formato.printHeader : 'none';
+        const pie = ['page', 'name'].includes(formato.printFooter) ? formato.printFooter : 'none';
+        return {
+            cabecera,
+            pie,
+            nombre,
+            hay: cabecera !== 'none' || pie !== 'none',
+            arribaIzquierda: (cabecera === 'name' || cabecera === 'name-date') ? nombre : '',
+            arribaDerecha: (cabecera === 'date' || cabecera === 'name-date') ? fechaParaImprimir() : '',
+            abajoIzquierda: pie === 'name' ? nombre : '',
+            numero: pie !== 'none',
+        };
+    }
+
+    /*
+      Si este motor dibuja las cajas de margen de `@page`, que es con lo que se
+      imprimen la cabecera y el pie. Se le pregunta al propio motor: el que no
+      las entiende descarta la regla al leerla. Chrome y Edge las conservan;
+      Firefox y WebKit, no. De esto depende que la hoja las enseñe: donde no
+      van a salir en el papel, no se dibujan en la vista previa.
+    */
+    // La respuesta se guarda en la propia función y no en una variable de al
+    // lado: el cuadro del formato la pregunta al arrancar, antes de que el
+    // programa llegue a esta línea.
+    function imprimeCajasDeMargen() {
+        if (typeof imprimeCajasDeMargen.respuesta === 'boolean') return imprimeCajasDeMargen.respuesta;
+        let respuesta = false;
+        try {
+            const prueba = new CSSStyleSheet();
+            prueba.replaceSync('@page { @top-left { content: ""; } }');
+            const regla = prueba.cssRules[0];
+            respuesta = Boolean(regla && /@top-left/.test(regla.cssText));
+        } catch (error) {
+            respuesta = false;
+        }
+        imprimeCajasDeMargen.respuesta = respuesta;
+        return respuesta;
+    }
+    window.__imprimeCajasDeMargen = imprimeCajasDeMargen;
+
     function prepararMargenesDeImpresion() {
         let sheet = document.getElementById('doc-print-margins-style');
         if (!sheet) {
@@ -14079,10 +14147,7 @@ window.onload = async () => {
             sheet.id = 'doc-print-margins-style';
             document.head.appendChild(sheet);
         }
-        const nombre = nombreParaImprimir();
-        const formato = effectiveDocumentFormat();
-        const cabecera = ['name', 'date', 'name-date'].includes(formato.printHeader) ? formato.printHeader : 'none';
-        const pie = ['page', 'name'].includes(formato.printFooter) ? formato.printFooter : 'none';
+        const { cabecera, pie, nombre } = cabeceraYPieDelDocumento();
         if (cabecera !== 'none' || pie !== 'none') {
             const hoja = document.getElementById('html-output');
             const letra = hoja ? getComputedStyle(hoja).fontFamily : 'serif';
@@ -14917,6 +14982,33 @@ window.onload = async () => {
         */
         const estrecho = (anchoUtilDeLaMesa() - ancho) / 2 < 56;
         layer.classList.toggle('tight', estrecho);
+        /*
+          La cabecera y el pie que saldrán en el papel, en los márgenes de cada
+          hoja: es el único ajuste del formato que no se veía hasta abrir el
+          cuadro de impresión. Solo donde el motor los imprime; en los demás
+          sería enseñar algo que el papel no va a llevar. Van en la capa de las
+          hojas, fuera del texto editable, así que no pasan al Markdown.
+        */
+        const margenes = imprimeCajasDeMargen() ? cabeceraYPieDelDocumento() : null;
+        const conMargenes = Boolean(margenes && margenes.hay);
+        // Con el pie puesto, el número ya está en la hoja: el rótulo que se
+        // mete en el margen cuando no cabe fuera lo pisaría.
+        layer.classList.toggle('with-footer', Boolean(conMargenes && margenes.numero));
+        const letra = conMargenes ? getComputedStyle(sheet).fontFamily : '';
+        const franja = (clase, alto, izquierda, derecha) => {
+            const caja = document.createElement('div');
+            caja.className = `page-sheet-margin ${clase}`;
+            caja.style.left = `${numero(format.marginLeft) * PX_POR_CM * zoom}px`;
+            caja.style.right = `${numero(format.marginRight) * PX_POR_CM * zoom}px`;
+            caja.style.height = `${alto}px`;
+            caja.style.fontFamily = letra;
+            [izquierda, derecha].forEach((texto) => {
+                const trozo = document.createElement('span');
+                trozo.textContent = texto;
+                caja.appendChild(trozo);
+            });
+            return caja;
+        };
         const hojas = [];
         for (let i = 0; i < paginas; i += 1) {
             const hoja = document.createElement('div');
@@ -14935,6 +15027,16 @@ window.onload = async () => {
                 { page: String(i + 1) },
             );
             hoja.appendChild(etiqueta);
+            if (conMargenes) {
+                if (margenes.arribaIzquierda || margenes.arribaDerecha) {
+                    hoja.appendChild(franja('page-sheet-header', margenSuperior,
+                        margenes.arribaIzquierda, margenes.arribaDerecha));
+                }
+                if (margenes.numero) {
+                    hoja.appendChild(franja('page-sheet-footer', margenInferior,
+                        margenes.abajoIzquierda, `${i + 1} / ${paginas}`));
+                }
+            }
             hojas.push(hoja);
         }
         layer.replaceChildren(...hojas, ...cabecerasRepetidas(sheet, origen));

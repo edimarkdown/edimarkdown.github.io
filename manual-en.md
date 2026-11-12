@@ -157,7 +157,7 @@ Everything you set is saved inside the `.md` file itself, in metadata lines at t
 * **EPUB**: a digital book compatible with EPUB 3 readers.
 * **HTML**: a self-contained web page, with styles and formulas included.
 * **TEX (LaTeX)**: a complete `.tex` file, ready to compile.
-* **PDF**: opens the print dialog ("Save as PDF"); it produces exactly what you see on screen. With **Header when printing** and **Footer when printing**, in the document format, every page carries the document's name, the date or both at its head, and the page number, or the name and the number, at its foot. As soon as you choose either, the browser's own header and footer stop appearing, even if its headers and footers option is ticked; if you choose neither, it prints as always. It works in Chrome, Edge and the Windows app; in Firefox and Safari that option still decides, and in the macOS and Linux apps they do not appear.
+* **PDF**: opens the print dialog ("Save as PDF"); it produces exactly what you see on screen. With **Header when printing** and **Footer when printing**, in the document format, every page carries the document's name, the date or both at its head, and the page number, or the name and the number, at its foot. As soon as you choose either, the browser's own header and footer stop appearing, even if its headers and footers option is ticked; if you choose neither, it prints as always. Where they print, the visual editor already shows them in the margins of each page. It works in Chrome, Edge and the Windows app; in Firefox and Safari that option still decides, and in the macOS and Linux apps they do not appear.
 
 The copy button, next to Export, sends the content to the clipboard as Markdown, HTML or LaTeX, without creating a file.
 

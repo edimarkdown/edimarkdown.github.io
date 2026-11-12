@@ -157,7 +157,7 @@ Todo lo que fijes se guarda dentro del propio `.md`, en unas líneas de metadato
 * **EPUB**: libro digital compatible con lectores EPUB 3.
 * **HTML**: página web autónoma, con los estilos y las fórmulas dentro.
 * **TEX (LaTeX)**: un `.tex` completo, listo para compilar.
-* **PDF**: abre el diálogo de impresión («Guardar como PDF»); sale exactamente lo que ves en pantalla. Con **Cabecera al imprimir** y **Pie al imprimir**, en el formato del documento, cada página lleva arriba el nombre del documento, la fecha o ambos, y al pie el número de página, o el nombre y el número. En cuanto eliges una de las dos, la cabecera y el pie del navegador dejan de salir, aunque su casilla de encabezado y pie esté marcada; si no eliges ninguna, se imprime como siempre. Sale en Chrome, Edge y la aplicación de Windows; en Firefox y Safari sigue mandando esa casilla, y en las aplicaciones de macOS y Linux no salen.
+* **PDF**: abre el diálogo de impresión («Guardar como PDF»); sale exactamente lo que ves en pantalla. Con **Cabecera al imprimir** y **Pie al imprimir**, en el formato del documento, cada página lleva arriba el nombre del documento, la fecha o ambos, y al pie el número de página, o el nombre y el número. En cuanto eliges una de las dos, la cabecera y el pie del navegador dejan de salir, aunque su casilla de encabezado y pie esté marcada; si no eliges ninguna, se imprime como siempre. Donde salen, el editor visual los enseña ya en los márgenes de cada página. Sale en Chrome, Edge y la aplicación de Windows; en Firefox y Safari sigue mandando esa casilla, y en las aplicaciones de macOS y Linux no salen.
 
 El botón de copiar, junto a Exportar, lleva el contenido al portapapeles en Markdown, HTML o LaTeX, sin generar ningún archivo.
 

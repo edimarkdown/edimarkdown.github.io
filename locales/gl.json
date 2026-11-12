@@ -665,6 +665,8 @@
   "doc_format_footer_none": "Ningún",
   "doc_format_footer_page": "Número de páxina",
   "doc_format_footer_name": "Nome e número de páxina",
+  "doc_format_print_margins_unsupported_web": "Neste navegador a cabeceira e o pé non saen ao imprimir: manda a caixa de cabeceira e pé do seu cadro de impresión.",
+  "doc_format_print_margins_unsupported_app": "Nesta aplicación a cabeceira e o pé non saen ao imprimir.",
   "doc_format_paper_a4": "A4 (21 × 29,7 cm)",
   "doc_format_paper_letter": "Carta (21,6 × 27,9 cm)",
   "page_break_label": "Páxina {page}",

@@ -1124,6 +1124,39 @@ body.desktop-mode .markdown-textarea {
 .dark .page-sheet-label {
     color: #64748b;
 }
+/*
+  La cabecera y el pie del papel, dibujados en los márgenes de cada hoja: lo
+  mismo que ponen las cajas de margen de `@page` al imprimir, con su letra, su
+  cuerpo de 9 pt y su gris, alineados con la caja de texto. Lo de la izquierda,
+  pegado a ese lado, y lo de la derecha, al otro.
+*/
+.page-sheet-margin {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5em;
+    color: #555555;
+    font-size: calc(9pt * var(--preview-zoom, 1));
+    line-height: 1.2;
+}
+.page-sheet-header {
+    top: 0;
+}
+.page-sheet-footer {
+    bottom: 0;
+}
+.page-sheet-margin > span:last-child {
+    margin-left: auto;
+    text-align: right;
+}
+.dark .page-sheet-margin {
+    color: #94a3b8;
+}
+/* Con el pie en la hoja, el número de página ya está a la vista. */
+.page-sheets.tight.with-footer .page-sheet-label {
+    display: none;
+}
 /* Sin sitio en la mesa, el número se mete en el margen inferior de la hoja. */
 .page-sheets.tight .page-sheet-label {
     transform: translate(-0.6rem, -0.35rem);

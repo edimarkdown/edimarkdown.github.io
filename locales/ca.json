@@ -665,6 +665,8 @@
   "doc_format_footer_none": "Cap",
   "doc_format_footer_page": "Número de pàgina",
   "doc_format_footer_name": "Nom i número de pàgina",
+  "doc_format_print_margins_unsupported_web": "En aquest navegador la capçalera i el peu no surten en imprimir: mana la casella de capçalera i peu del seu quadre d'impressió.",
+  "doc_format_print_margins_unsupported_app": "En aquesta aplicació la capçalera i el peu no surten en imprimir.",
   "doc_format_paper_a4": "A4 (21 × 29,7 cm)",
   "doc_format_paper_letter": "Carta (21,6 × 27,9 cm)",
   "page_break_label": "Pàgina {page}",

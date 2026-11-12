@@ -18,6 +18,7 @@ las alternativas descartadas y sus consecuencias.
 | [11](0011-la-cabecera-impresa-es-una-opcion-del-formato-y-con-cabecera-o-pie-propios-no-salen-los-del-navegador.md) | La cabecera impresa es una opción del formato, y con cabecera o pie propios no salen los del navegador | aceptado |
 | [12](0012-la-hoja-compensa-la-escala-de-impresion-de-webkit-midiendo-el-ancho-del-papel.md) | La hoja compensa la escala de impresión de WebKit midiendo el ancho del papel | aceptado |
 | [13](0013-el-reparto-en-paginas-deja-un-milimetro-de-holgura-al-final-de-cada-pagina.md) | El reparto en páginas deja un milímetro de holgura al final de cada página | aceptado |
+| [14](0014-la-hoja-ensena-la-cabecera-y-el-pie-del-papel-solo-donde-el-motor-los-imprime.md) | La hoja enseña la cabecera y el pie del papel solo donde el motor los imprime | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número
