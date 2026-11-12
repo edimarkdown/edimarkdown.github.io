@@ -28,6 +28,11 @@ Y después, `python3 compara.py /tmp/w.json /tmp/w.pdf`.
 - `macos.swift` se compila con `swiftc -O macos.swift -o macos`. Sin un Mac a
   mano, se ejecuta en una máquina `macos-latest` de GitHub Actions.
 
+`prototipo/paginas-como-cajas.html` es la página de prueba del
+[ADR 15](../../docs/adr/0015-la-impresion-sale-de-una-copia-de-la-hoja-partida-en-paginas.md),
+que está propuesto y sin construir: cuatro páginas dibujadas como cajas, cada
+una con su cabecera y su pie.
+
 Las decisiones que se comprueban con esto están en los ADR
 [12](../../docs/adr/0012-la-hoja-compensa-la-escala-de-impresion-de-webkit-midiendo-el-ancho-del-papel.md)
 y [13](../../docs/adr/0013-el-reparto-en-paginas-deja-un-milimetro-de-holgura-al-final-de-cada-pagina.md).
