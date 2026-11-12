@@ -3,7 +3,7 @@
   y src-tauri/Cargo.toml; una prueba de test/desktop-updater.test.mjs vigila que
   las cuatro coincidan.
 */
-const APP_VERSION = '3.5.6';
+const APP_VERSION = '3.5.7';
 /*
   «No volver a mostrar» vale para siempre. Hasta la 3.5.0 la clave llevaba la
   versión y el aviso volvía con cada versión nueva; quien lo descartó entonces
@@ -7962,7 +7962,7 @@ async function importFileWithPandoc(file, { index = 1, total = 1 } = {}) {
     }
     if (format === 'pdf') {
         try {
-            const { importPdf } = await import('./pdf-import.js?v=3.5.6');
+            const { importPdf } = await import('./pdf-import.js?v=3.5.7');
             const name = getSafeDocumentName(file.name);
             // Crear el documento ocurre dentro del diálogo, que se queda a la
             // vista avisando: con un informe entero no es cosa de un instante.

@@ -4,6 +4,11 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.7] - 2026-11-12
+
+- En las aplicaciones de Linux y macOS, lo que se imprime o se guarda en PDF sale al tamaño que pide el documento y corta las páginas donde la vista previa. Antes, en Linux todo salía un 6,7 % más grande y el papel no cortaba donde la hoja: el manual, de 10 páginas, ocupaba 16, dos de ellas en blanco. En macOS salía un 12 % más pequeño.
+- En Firefox, un bloque que cabía por muy poco al final de una página ya no salta él solo a una página de más al imprimir. El reparto en páginas deja ahora un milímetro de holgura al final de cada una, así que en cualquier navegador un bloque que antes cerraba la página por menos de ese milímetro empieza la siguiente.
+
 ## [3.5.6] - 2026-11-12
 
 - La cabecera de las páginas impresas es una opción: **Cabecera al imprimir**, en el formato del documento, con «Ninguna», «Nombre del documento», «Fecha» o «Nombre y fecha». Como el pie, se puede fijar para todos los documentos en las opciones generales o para uno solo, y de partida no hay cabecera.
