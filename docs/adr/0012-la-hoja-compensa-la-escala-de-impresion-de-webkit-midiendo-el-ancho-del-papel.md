@@ -106,6 +106,9 @@ pequeño de lo que pide el documento.
   compensación, a 97, y 10 páginas en el papel para 10 en la hoja. En Carta
   apaisada, a 96 y 12 para 12.
 
+- La aplicación de Linux instalada, versión 3.5.8, imprime bien: comprobado a
+  mano el 2026-11-12.
+
 ## Riesgos y limitaciones
 
 - En macOS se ha probado el motor —un `WKWebView` que imprime como lo hace la
