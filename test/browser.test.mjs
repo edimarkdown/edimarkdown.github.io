@@ -7406,6 +7406,10 @@ test('El cuadro de Almacenamiento cuenta lo guardado y borra lo que sobra', asyn
     la salida de emergencia de la cortina, que solo aparece cuando la carga ya
     va lenta. Aquí se ve lo que ocupa y se borra cuando se quiera.
   */
+  // El barrido del arranque llega hasta cinco segundos después de que la
+  // ventana diga que está lista: si se escribe antes la imagen sin dueño, se
+  // la lleva, el cuadro cuenta cero y la espera de abajo no termina nunca.
+  await page.evaluate(() => window.__edimarkAssetPurge);
   await page.evaluate(async () => {
     const doc = docs.find(d => d.id === currentId);
     await replacePersistedDocumentAssets(doc.id, [
