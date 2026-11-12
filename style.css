@@ -2977,10 +2977,18 @@ code {
   color: #eee;
 }
 
+/*
+  Fuera de `@media print` a propósito. En macOS, WebKit decide el ancho al que
+  compone la página antes de pasar al medio de impresión: una regla `@page`
+  metida dentro de `@media print` no la ve todavía, compone para el papel
+  entero y después encoge el resultado para que quepa entre los márgenes, con
+  lo que todo salía un 12 % más pequeño. `@page` solo actúa al imprimir, así
+  que fuera dice lo mismo.
+*/
+@page {
+    margin: 18mm;
+}
 @media print {
-    @page {
-        margin: 18mm;
-    }
     html, body {
         background: #ffffff !important;
         color: #000000 !important;

@@ -45,6 +45,14 @@ se toca nada: la hoja se ajusta sola cuando llegue el motor nuevo.
 WebKit se reconoce por `navigator.vendor` («Apple Computer, Inc.», también en
 WebKitGTK). En los demás motores la regla no se escribe.
 
+Las reglas `@page` —el margen de partida de la hoja de estilos y la del
+documento— van fuera de `@media print`. En macOS, WebKit decide el ancho al
+que compone la página antes de pasar al medio de impresión: una `@page` metida
+en `@media print` no la ve todavía, compone para el papel entero y después
+encoge el resultado para que quepa entre los márgenes. Así la caja de texto no
+medía lo esperado, la compensación no actuaba y el papel salía un 12 % más
+pequeño de lo que pide el documento.
+
 ## Alternativas descartadas
 
 - **Preguntar la versión del motor.** La cadena del agente no la dice: WebKit
@@ -64,8 +72,9 @@ WebKitGTK). En los demás motores la regla no se escribe.
 
 ## Consecuencias
 
-- En la aplicación de Linux el papel vuelve a cortar donde la hoja y cada
-  medida sale a su tamaño.
+- En las aplicaciones de Linux y macOS el papel vuelve a cortar donde la hoja y
+  cada medida sale a su tamaño. En macOS salía antes un 12 % más pequeño, no
+  más grande, por lo de `@page`.
 - La regla depende de que el papel del cuadro de impresión sea el del
   documento. Con otro papel el ancho no cuadra y no se compensa: se imprime
   como hasta ahora.
@@ -88,16 +97,20 @@ WebKitGTK). En los demás motores la regla no se escribe.
   96, como en Firefox. En Carta apaisada con márgenes propios, 12 y 12.
 - Página de sondeo con una regla por cada tramo de ancho: al imprimir en
   WebKitGTK, `(max-width)` da el ancho de la ventana.
+- La misma página de las dos marcas en macOS 15.8.2 y 26.7.2, con los márgenes
+  del sistema a cero: con `@page` suelta, 10,67 cm; con `@page` dentro de
+  `@media print`, 8,64 cm.
+- El manual impreso desde la aplicación cargada en un `WKWebView`, en esas dos
+  versiones de macOS: con `@page` dentro de `@media print`, el logotipo a 109
+  puntos por pulgada, con la compensación y sin ella; con `@page` suelta y la
+  compensación, a 97, y 10 páginas en el papel para 10 en la hoja. En Carta
+  apaisada, a 96 y 12 para 12.
 
 ## Riesgos y limitaciones
 
-- **macOS no está resuelto.** En la máquina de GitHub, la aplicación cargada en
-  un `WKWebView` imprime el manual encogido —el logotipo a 109 puntos por
-  pulgada, un 12 % más pequeño de lo exacto— con este cambio y sin él: la caja
-  de texto no mide lo esperado, la consulta no se cumple y la regla no actúa.
-  La página de prueba sencilla sí sale allí a la escala antigua. La causa del
-  encogimiento está sin determinar, y no se ha probado la aplicación de macOS
-  instalada ni el cuadro de impresión de Safari.
+- En macOS se ha probado el motor —un `WKWebView` que imprime como lo hace la
+  aplicación, con los márgenes del sistema a cero— en máquinas de GitHub, no la
+  aplicación instalada ni el cuadro de impresión de Safari.
 - WebKit no respeta el salto de página forzado entre las filas de una tabla ni
   repite su cabecera: en una tabla partida, el corte del papel se desvía de la
   hoja en una fila. Es anterior a este cambio y sigue igual.

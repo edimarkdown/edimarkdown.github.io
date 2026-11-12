@@ -14154,9 +14154,13 @@ window.onload = async () => {
         const saltoH1 = format.pageBreakBeforeH1 === 'yes'
             ? '#html-output > h1:not(:first-of-type) { break-before: page; page-break-before: always; }'
             : '';
-        const reglas = [pagina.length ? `@page { ${pagina.join(' ')} }` : '', saltoH1].filter(Boolean);
-        sheet.textContent = (reglas.length ? `@media print { ${reglas.join(' ')} }` : '')
-            + escalaDeImpresionEnWebKit(format);
+        // `@page`, fuera de `@media print`: dentro, WebKit en macOS no la ve
+        // al decidir el ancho de la página y encoge el papel entero (está
+        // contado en la regla `@page` de la hoja de estilos).
+        sheet.textContent = [
+            pagina.length ? `@page { ${pagina.join(' ')} }` : '',
+            saltoH1 ? `@media print { ${saltoH1} }` : '',
+        ].filter(Boolean).join(' ') + escalaDeImpresionEnWebKit(format);
     }
 
     /*

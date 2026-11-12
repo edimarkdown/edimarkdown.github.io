@@ -4783,6 +4783,12 @@ test('los márgenes del documento se escriben para el papel', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());
 
+  // El margen de partida, igual: su `@page` va suelta en la hoja de estilos.
+  const dePartida = await page.evaluate(() => [...document.styleSheets].flatMap((hoja) => {
+    try { return [...hoja.cssRules]; } catch (error) { return []; }
+  }).filter(regla => regla instanceof CSSPageRule).map(regla => regla.style.margin));
+  assert.ok(dePartida.includes('18mm'), 'el margen de partida de la página no está fuera de @media print');
+
   const regla = () => page.evaluate(
     () => document.getElementById('doc-print-page-style')?.textContent ?? '',
   );
@@ -4792,7 +4798,9 @@ test('los márgenes del documento se escriben para el papel', async (t) => {
     y el reparto en páginas de la pantalla dejaba de valer. De los márgenes,
     mientras no se fijen, se ocupa el de partida del CSS de impresión.
   */
-  assert.equal(await regla(), '@media print { @page { size: A4 portrait; } }');
+  // Y fuera de `@media print`: dentro, WebKit en macOS no la ve al decidir el
+  // ancho de la página y encoge el papel entero (ADR 12).
+  assert.equal(await regla(), '@page { size: A4 portrait; }');
 
   await page.locator('#new-tab-btn').click();
   await page.locator('#markdown-input').fill('---\npapersize: "letter"\nmargin-left: "3"\nmargin-right: "2.5"\n---\n\nTexto\n');
@@ -4800,7 +4808,8 @@ test('los márgenes del documento se escriben para el papel', async (t) => {
     () => (document.getElementById('doc-print-page-style')?.textContent || '').includes('margin-left'),
   );
   const escrita = await regla();
-  assert.match(escrita, /@media print \{ @page \{/);
+  assert.match(escrita, /^@page \{/);
+  assert.doesNotMatch(escrita, /@media print \{ @page/);
   assert.match(escrita, /size: Letter portrait;/);
   assert.match(escrita, /margin-left: 3cm;/);
   assert.match(escrita, /margin-right: 2\.5cm;/);
