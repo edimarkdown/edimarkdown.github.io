@@ -14155,7 +14155,25 @@ window.onload = async () => {
             ? '#html-output > h1:not(:first-of-type) { break-before: page; page-break-before: always; }'
             : '';
         const reglas = [pagina.length ? `@page { ${pagina.join(' ')} }` : '', saltoH1].filter(Boolean);
-        sheet.textContent = reglas.length ? `@media print { ${reglas.join(' ')} }` : '';
+        sheet.textContent = (reglas.length ? `@media print { ${reglas.join(' ')} }` : '')
+            + escalaDeImpresionEnWebKit(format);
+    }
+
+    /*
+      WebKit —Safari y las aplicaciones de macOS y Linux— imprime un 6,7 % más
+      grande de lo que se le pide, y el papel dejaba de cortar donde la hoja.
+      La regla que lo compensa, y cómo sabe cuándo hace falta, está en
+      `toLegacyWebKitPrintScaleRule`. Solo se escribe para ese motor: en los
+      demás la escala es la buena, y allí el ancho del papel puede no cuadrar
+      por lo que se elija en el cuadro de impresión. `navigator.vendor` es lo
+      que distingue a WebKit sin fiarse de la cadena del agente, que Chrome
+      también firma como Safari.
+    */
+    function escalaDeImpresionEnWebKit(format) {
+        const api = documentFormatApi();
+        if (!api || typeof api.toLegacyWebKitPrintScaleRule !== 'function') return '';
+        if (!/^Apple/.test(navigator.vendor || '')) return '';
+        return ` ${api.toLegacyWebKitPrintScaleRule(format, { defaultMarginCm: MARGEN_DE_PARTIDA_CM })}`;
     }
 
     /*

@@ -10,6 +10,9 @@ const {
   toFrontMatterEntries,
   readFromFrontMatter,
   toPreviewStyles,
+  printTextWidthPx,
+  toLegacyWebKitPrintScaleRule,
+  LEGACY_WEBKIT_PRINT_SCALE,
 } = documentFormat;
 
 test('un ajuste sin valor significa heredar, no imponer un valor por omisión', () => {
@@ -249,4 +252,36 @@ test('la cabecera al imprimir admite sus cuatro valores y viaja en el bloque de 
   assert.deepEqual(entries.map(entry => entry.lines[0]), ['print-header: "name-date"', 'print-footer: "page"']);
   assert.equal(documentFormat.readFromFrontMatter('print-header: date').printHeader, 'date');
   assert.equal(resolveDocumentFormat({ printHeader: 'none' }, { printHeader: 'name' }).printHeader, 'name');
+});
+
+test('la caja de texto del papel se mide en píxeles de CSS, con el papel, la orientación y los márgenes', () => {
+  // A4 con los 1,8 cm de partida: 21 − 3,6 = 17,4 cm.
+  assert.equal(printTextWidthPx({ paperSize: 'a4' }, { defaultMarginCm: 1.8 }).toFixed(2), '657.64');
+  // Apaisada, el ancho es el lado largo; los márgenes del documento mandan.
+  assert.equal(
+    printTextWidthPx({ paperSize: 'letter', orientation: 'landscape', marginLeft: '3', marginRight: '2.5' }, { defaultMarginCm: 1.8 }).toFixed(2),
+    (((27.94 - 5.5) * 96) / 2.54).toFixed(2),
+  );
+  // Un margen de cero es un margen, no un hueco que rellenar con el de partida.
+  assert.equal(printTextWidthPx({ paperSize: 'a4', marginLeft: '0', marginRight: '0' }, { defaultMarginCm: 1.8 }).toFixed(2), ((21 * 96) / 2.54).toFixed(2));
+  // Sin papel no hay medida, y unos márgenes que se comen la página tampoco la dan.
+  assert.equal(printTextWidthPx({}, { defaultMarginCm: 1.8 }), 0);
+  assert.equal(printTextWidthPx({ paperSize: 'a4', marginLeft: '11', marginRight: '11' }), 0);
+});
+
+test('la escala antigua de WebKit se compensa solo cuando el ancho impreso la delata', () => {
+  assert.equal(LEGACY_WEBKIT_PRINT_SCALE, 0.9375);
+  const regla = toLegacyWebKitPrintScaleRule({ paperSize: 'a4' }, { defaultMarginCm: 1.8 });
+  assert.equal(
+    regla,
+    '@media print { #preview-paper { container-type: inline-size; } '
+      + '@container (min-width: 608.31px) and (max-width: 624.76px) { #html-output { zoom: 0.9375; } } }',
+  );
+  // La ventana rodea el ancho a 90 px por pulgada y deja fuera el de 96.
+  const ancho = printTextWidthPx({ paperSize: 'a4' }, { defaultMarginCm: 1.8 });
+  const [, minimo, maximo] = regla.match(/min-width: ([\d.]+)px\) and \(max-width: ([\d.]+)px/).map(Number);
+  assert.ok(minimo < ancho * 0.9375 && ancho * 0.9375 < maximo);
+  assert.ok(maximo < ancho);
+  // Sin papel conocido no se adivina nada.
+  assert.equal(toLegacyWebKitPrintScaleRule({}), '');
 });

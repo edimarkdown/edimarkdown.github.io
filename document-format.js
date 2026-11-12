@@ -326,6 +326,62 @@
     return styles;
   }
 
+  /*
+    La escala del papel en WebKit —Safari y las aplicaciones de macOS y
+    Linux—. Ese motor compone la página impresa a 90 píxeles por pulgada y no
+    a los 96 de CSS: todo sale 96/90, un 6,7 %, más grande de lo que se pide, y
+    en cada página cabe menos de lo que reparte la hoja. Un manual de diez
+    páginas en pantalla salía en dieciséis, dos de ellas en blanco.
+
+    WebKit lo corrigió el 31-10-2026 (bugs.webkit.org/show_bug.cgi?id=329426),
+    pero la aplicación de Linux usa el motor de cada distribución, así que las
+    dos escalas van a convivir años. Por eso no se pregunta la versión: se mide.
+    El papel y los márgenes del documento dicen cuántos píxeles de ancho debe
+    tener la caja de texto a 96 por pulgada; si al imprimir tiene 90/96 de eso,
+    el motor es de los de la escala antigua y la hoja se reduce en la misma
+    proporción, con lo que cada medida vuelve a su tamaño. Con la escala nueva
+    el ancho es el esperado, la consulta no se cumple y no se toca nada.
+
+    Lo mide una consulta de contenedor y no una de medios: al imprimir, WebKit
+    contesta a `(max-width)` con el ancho de la ventana, no con el del papel.
+
+    El margen de la ventana (del 92,5 % al 95 %) deja fuera cualquier otro
+    motivo por el que el ancho no cuadre, como imprimir en un papel distinto del
+    que dice el documento: allí no se sabe a qué escala trabaja el motor y es
+    mejor no adivinar.
+  */
+  const LEGACY_WEBKIT_PRINT_SCALE = 90 / 96;
+  const CSS_PX_PER_CM = 96 / 2.54;
+
+  /* El ancho de la caja de texto del papel, en píxeles de CSS a 96 por pulgada. */
+  function printTextWidthPx(format, { defaultMarginCm = 0 } = {}) {
+    const resolved = normalizeDocumentFormat(format);
+    const paper = PAPER_SIZES[resolved.paperSize];
+    if (!paper) return 0;
+    const paperWidthCm = resolved.orientation === 'landscape' ? paper.heightCm : paper.widthCm;
+    const margin = value => (value === '' ? defaultMarginCm : Number(value));
+    const widthCm = paperWidthCm - margin(resolved.marginLeft) - margin(resolved.marginRight);
+    return widthCm > 0 ? widthCm * CSS_PX_PER_CM : 0;
+  }
+
+  /*
+    La regla que compensa la escala antigua de WebKit. `container` es el
+    elemento que al imprimir ocupa el ancho de la caja de texto y `target`, la
+    hoja que se reduce dentro de él. Sin papel conocido no hay regla.
+  */
+  function toLegacyWebKitPrintScaleRule(format, {
+    container = '#preview-paper',
+    target = '#html-output',
+    defaultMarginCm = 0,
+  } = {}) {
+    const width = printTextWidthPx(format, { defaultMarginCm });
+    if (!width) return '';
+    const px = value => `${Number(value.toFixed(2))}px`;
+    return `@media print { ${container} { container-type: inline-size; } `
+      + `@container (min-width: ${px(width * 0.925)}) and (max-width: ${px(width * 0.95)}) `
+      + `{ ${target} { zoom: ${LEGACY_WEBKIT_PRINT_SCALE}; } } }`;
+  }
+
   /* Los tamaños que aceptan article, report y book sin paquetes de por medio. */
   const LATEX_STANDARD_SIZES = ['10', '11', '12'];
 
@@ -509,6 +565,9 @@
     toFrontMatterEntries,
     readFromFrontMatter,
     toPreviewStyles,
+    LEGACY_WEBKIT_PRINT_SCALE,
+    printTextWidthPx,
+    toLegacyWebKitPrintScaleRule,
     toCssRules,
     toLatex,
     toOfficeStyles,

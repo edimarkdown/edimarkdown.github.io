@@ -8506,6 +8506,54 @@ test('un <style> del documento se queda en la hoja y vuelve entero al Markdown',
   assert.doesNotMatch(vuelta.html, /data-edimark-css|#html-output/);
 });
 
+test('en WebKit la hoja compensa la escala antigua del papel, y solo cuando el ancho impreso la delata', async (t) => {
+  const reglas = pagina => pagina.evaluate(() => document.getElementById('doc-print-page-style').textContent);
+
+  // En los demás motores la escala es la buena: no se escribe nada.
+  const otro = await openApp();
+  t.after(() => otro.context.close());
+  assert.doesNotMatch(await reglas(otro.page), /zoom|container/);
+
+  // WebKit —Safari y las aplicaciones de macOS y Linux— se reconoce por su
+  // `navigator.vendor`.
+  const { context, page } = await openApp({
+    initStorage: () => {
+      Object.defineProperty(Navigator.prototype, 'vendor', { get: () => 'Apple Computer, Inc.' });
+    },
+  });
+  t.after(() => context.close());
+  await page.evaluate(() => { newDoc('escala.md', '# Escala\n\nTexto.'); });
+  // A4 con los márgenes de partida: 657,64 px de caja de texto a 96 por pulgada.
+  assert.match(
+    await reglas(page),
+    /@container \(min-width: 608\.31px\) and \(max-width: 624\.76px\) \{ #html-output \{ zoom: 0\.9375; \} \}/,
+  );
+
+  // Al imprimir, el contenedor de la hoja mide lo que la caja de texto del
+  // papel. Con el ancho que da la escala antigua (90/96 del esperado) la hoja
+  // se reduce; con el esperado, o con cualquier otro, se queda como está.
+  await page.emulateMedia({ media: 'print' });
+  const zoomCon = ancho => page.evaluate((px) => {
+    document.getElementById('preview-paper').style.setProperty('width', `${px}px`, 'important');
+    return Number(getComputedStyle(document.getElementById('html-output')).zoom);
+  }, ancho);
+  assert.equal(await zoomCon(616.54), 0.9375);
+  assert.equal(await zoomCon(657.64), 1);
+  assert.equal(await zoomCon(560), 1);
+
+  // La ventana sigue al papel y a los márgenes del documento.
+  await page.emulateMedia({ media: 'screen' });
+  await page.evaluate(() => {
+    markdownEditor.setValue('---\npapersize: "letter"\norientation: "landscape"\nmargin-left: "3cm"\nmargin-right: "2.5cm"\n---\n\n# Escala\n\nTexto.');
+  });
+  // (27,94 − 5,5) cm = 848,13 px; el 92,5 % y el 95 %.
+  assert.match(await reglas(page), /@container \(min-width: 784\.52px\) and \(max-width: 805\.72px\)/);
+  await page.emulateMedia({ media: 'print' });
+  assert.equal(await zoomCon(795.12), 0.9375);
+  assert.equal(await zoomCon(848.13), 1);
+  assert.equal(await zoomCon(616.54), 1);
+});
+
 test('al imprimir, la cabecera y el pie llevan lo que pide el documento, y quitan los del navegador', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());
