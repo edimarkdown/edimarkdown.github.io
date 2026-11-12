@@ -14320,6 +14320,9 @@ window.onload = async () => {
     const PX_POR_CM = 96 / 2.54;
     // Los mismos 18 mm que usa la impresión cuando el documento no dice otra cosa.
     const MARGEN_POR_DEFECTO_CM = 1.8;
+    // Lo que el papel puede crecer respecto a la pantalla sin que una página
+    // desborde a otra: ver el reparto, donde se usa.
+    const HOLGURA_DEL_PAPEL_CM = 0.1;
     // El hueco entre dos hojas, como el que deja cualquier procesador de textos.
     const HUECO_ENTRE_PAGINAS = 24;
     /*
@@ -14818,7 +14821,19 @@ window.onload = async () => {
                     : 0;
                 fluye = relativo + cabida <= altoUtil;
             }
-            if (indice > 0 && (saltoForzado || (relativo + alto > altoUtil && !fluye))) {
+            /*
+              Con una holgura: lo que en pantalla cabe por menos de un milímetro
+              se da por que no cabe. El papel no mide exactamente lo que la
+              pantalla —Firefox compone cada página un par de píxeles más
+              alta—, y un bloque que aquí entraba por 1,5 px allí saltaba él
+              solo a una página propia, con lo que el papel tenía una hoja más
+              que la vista previa. El papel conserva su caja de texto entera,
+              así que ese milímetro es lo que puede crecer sin desbordar. Al
+              principio de la página no se aplica: un bloque que la llena no
+              tiene adónde bajar.
+            */
+            const holgura = relativo > 0.5 ? HOLGURA_DEL_PAPEL_CM * PX_POR_CM * zoom : 0;
+            if (indice > 0 && (saltoForzado || (relativo + alto > altoUtil - holgura && !fluye))) {
                 /*
                   Un título no se queda solo al pie de la página. Si lo que baja
                   a la hoja siguiente venía justo detrás de un encabezado, el

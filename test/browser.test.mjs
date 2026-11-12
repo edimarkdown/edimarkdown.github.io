@@ -5092,6 +5092,45 @@ test('las páginas no dejan nada escrito en el documento', async (t) => {
   En el papel no hay huecos que dibujar: el salto de pantalla se cambia por uno
   de verdad, de modo que el PDF corta por donde cortaba la hoja.
 */
+/*
+  El papel no mide exactamente lo que la pantalla: Firefox compone cada página
+  un par de píxeles más alta, y un bloque que en la hoja cabía por 1,5 px salía
+  él solo en una página de más. El reparto deja un milímetro de holgura.
+*/
+test('lo que cabe en la página por menos de un milímetro baja a la siguiente', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.locator('#layout-switch [data-layout="html"]').click();
+  await conLaHojaATamanoReal(page);
+  // La caja de texto de una A4 con 1,8 cm de margen mide 986,46 px de alto.
+  const repartir = async (alto) => {
+    await page.evaluate((px) => {
+      markdownEditor.setValue([
+        '<div style="height: 500px; margin: 0;">uno</div>',
+        `<div style="height: ${px}px; margin: 0;">dos</div>`,
+        '<div style="height: 300px; margin: 0;">tres</div>',
+      ].join('\n\n'));
+    }, alto);
+    // La hoja se compone un poco después de escribir: hasta que no lleva el
+    // bloque nuevo, lo que se leería es el reparto del documento anterior.
+    await page.waitForFunction((px) => {
+      const dos = document.querySelector('#html-output > div:nth-child(2)');
+      return dos && dos.getBoundingClientRect().height === px;
+    }, alto);
+    await page.evaluate(() => window.__refreshPageBreaks());
+    return page.evaluate(() => [...document.querySelectorAll('#html-output > [data-page-start]')]
+      .map(bloque => bloque.textContent.trim()));
+  };
+  // Sobran 6,5 px, más que el milímetro (3,78 px): los dos primeros comparten página.
+  assert.deepEqual(await repartir(480), ['tres']);
+  // Sobra 1,5 px: cabría en pantalla, pero el papel puede medir algo más.
+  assert.deepEqual(await repartir(485), ['dos']);
+  // Un bloque que llena la página él solo no tiene adónde bajar: se queda.
+  assert.deepEqual(await repartir(986), ['dos', 'tres']);
+});
+
 test('lo que en pantalla salta de página, en el papel también', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());
