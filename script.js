@@ -3,7 +3,7 @@
   y src-tauri/Cargo.toml; una prueba de test/desktop-updater.test.mjs vigila que
   las cuatro coincidan.
 */
-const APP_VERSION = '3.5.5';
+const APP_VERSION = '3.5.6';
 /*
   «No volver a mostrar» vale para siempre. Hasta la 3.5.0 la clave llevaba la
   versión y el aviso volvía con cada versión nueva; quien lo descartó entonces
@@ -7172,7 +7172,7 @@ const LATEX_SETTINGS_DEFAULTS = {
     */
     documentFormat: {
         fontSize: '12', font: 'serif', lineHeight: '1.5', paperSize: 'a4',
-        orientation: 'portrait', pageBreakBeforeH1: 'no', printFooter: 'none',
+        orientation: 'portrait', pageBreakBeforeH1: 'no', printHeader: 'none', printFooter: 'none',
     },
 };
 
@@ -7204,8 +7204,9 @@ function withDefaultDocumentFormat(stored) {
         // sigue significando «sin fijar».
         if (!Object.prototype.hasOwnProperty.call(stored, 'orientation')) format.orientation = 'portrait';
         if (!Object.prototype.hasOwnProperty.call(stored, 'pageBreakBeforeH1')) format.pageBreakBeforeH1 = 'no';
-        // Sin pie, que es como se imprimía antes de existir la opción.
+        // Sin pie ni cabecera, que es como se imprimía antes de existir cada opción.
         if (!Object.prototype.hasOwnProperty.call(stored, 'printFooter')) format.printFooter = 'none';
+        if (!Object.prototype.hasOwnProperty.call(stored, 'printHeader')) format.printHeader = 'none';
         return format;
     }
     Object.entries(LATEX_SETTINGS_DEFAULTS.documentFormat).forEach(([key, value]) => {
@@ -7961,7 +7962,7 @@ async function importFileWithPandoc(file, { index = 1, total = 1 } = {}) {
     }
     if (format === 'pdf') {
         try {
-            const { importPdf } = await import('./pdf-import.js?v=3.5.5');
+            const { importPdf } = await import('./pdf-import.js?v=3.5.6');
             const name = getSafeDocumentName(file.name);
             // Crear el documento ocurre dentro del diálogo, que se queda a la
             // vista avisando: con un informe entero no es cosa de un instante.
@@ -12338,7 +12339,7 @@ window.onload = async () => {
         }
         imprimirEnClaro();
         // Aquí y no solo en `beforeprint`: el webview puede no avisar antes.
-        prepararPieDeImpresion();
+        prepararMargenesDeImpresion();
         // La espera deja que se cierren los menús antes de congelar la página.
         window.setTimeout(async () => {
             const platform = window.EdiMarkPlatform;
@@ -12351,7 +12352,7 @@ window.onload = async () => {
             } catch (error) {
                 console.warn('No se pudo imprimir:', error);
             } finally {
-                terminarPieDeImpresion();
+                terminarMargenesDeImpresion();
                 if (citedPreview) updateHtml();
                 updateExportStatus('');
             }
@@ -13551,6 +13552,13 @@ window.onload = async () => {
             ['yes', 'doc_format_yes', 'Sí'],
             ['no', 'doc_format_no', 'No'],
         ])));
+        pageGrid.appendChild(buildFormatField('doc_format_field_print_header', 'Cabecera al imprimir', buildFormatSelect(`${prefix}-print-header`, [
+            ...blank,
+            ['none', 'doc_format_header_none', 'Ninguna'],
+            ['name', 'doc_format_header_name', 'Nombre del documento'],
+            ['date', 'doc_format_header_date', 'Fecha'],
+            ['name-date', 'doc_format_header_name_date', 'Nombre y fecha'],
+        ])));
         pageGrid.appendChild(buildFormatField('doc_format_field_print_footer', 'Pie al imprimir', buildFormatSelect(`${prefix}-print-footer`, [
             ...blank,
             ['none', 'doc_format_footer_none', 'Ninguno'],
@@ -13621,6 +13629,7 @@ window.onload = async () => {
         setValue('indent', values.indent);
         setValue('hyphenate', values.hyphenate);
         setValue('pagebreak-h1', values.pageBreakBeforeH1);
+        setValue('print-header', values.printHeader);
         setValue('print-footer', values.printFooter);
     }
 
@@ -13662,6 +13671,12 @@ window.onload = async () => {
             yes: ['doc_format_yes', 'Sí'],
             no: ['doc_format_no', 'No'],
         },
+        printHeader: {
+            none: ['doc_format_header_none', 'Ninguna'],
+            name: ['doc_format_header_name', 'Nombre del documento'],
+            date: ['doc_format_header_date', 'Fecha'],
+            'name-date': ['doc_format_header_name_date', 'Nombre y fecha'],
+        },
         printFooter: {
             none: ['doc_format_footer_none', 'Ninguno'],
             page: ['doc_format_footer_page', 'Número de página'],
@@ -13677,6 +13692,7 @@ window.onload = async () => {
         ['indent', 'indent'],
         ['hyphenate', 'hyphenate'],
         ['pagebreak-h1', 'pageBreakBeforeH1'],
+        ['print-header', 'printHeader'],
         ['print-footer', 'printFooter'],
     ];
 
@@ -13817,6 +13833,7 @@ window.onload = async () => {
             indent: value('indent'),
             hyphenate: value('hyphenate'),
             pageBreakBeforeH1: value('pagebreak-h1'),
+            printHeader: value('print-header'),
             printFooter: value('print-footer'),
         };
         return api ? api.normalizeDocumentFormat(raw) : raw;
@@ -13932,6 +13949,7 @@ window.onload = async () => {
         add('doc_format_field_indent', 'Sangría de primera línea', inheritedValueLabel('indent', format.indent));
         add('doc_format_field_hyphenate', 'Partir palabras con guion', inheritedValueLabel('hyphenate', format.hyphenate));
         add('doc_format_field_pagebreak_h1', 'Cada H1 empieza en página nueva', inheritedValueLabel('pageBreakBeforeH1', format.pageBreakBeforeH1));
+        add('doc_format_field_print_header', 'Cabecera al imprimir', inheritedValueLabel('printHeader', format.printHeader));
         add('doc_format_field_print_footer', 'Pie al imprimir', inheritedValueLabel('printFooter', format.printFooter));
         // Y qué quiere decir un guion, que si no se lee como un fallo.
         if (lines.some(line => line.endsWith(DOC_FORMAT_STATUS_UNSET))) {
@@ -14005,20 +14023,30 @@ window.onload = async () => {
     window.__paginaParaImprimir = paginaParaImprimir;
 
     /*
-      El pie de cada página impresa, si el documento lo pide (`printFooter`,
-      «Pie al imprimir» en el formato): «página / total» a la derecha y, si se
-      elige, el nombre del documento a la izquierda, alineados con el texto. De
-      partida no hay pie, como antes de existir la opción: no todo el mundo lo
-      quiere en el papel.
+      La cabecera y el pie de cada página impresa, si el documento los pide
+      (`printHeader` y `printFooter`, «Cabecera al imprimir» y «Pie al
+      imprimir» en el formato). Arriba, el nombre del documento a la izquierda
+      y la fecha en que se imprime a la derecha; abajo, el nombre a la
+      izquierda y «página / total» a la derecha. Todo alineado con el texto.
+      De partida no hay ni una ni otro, como antes de existir las opciones: no
+      todo el mundo los quiere en el papel.
 
       El número de página solo salía marcando «Encabezado y pie» en el cuadro
       del navegador, y ese pie pone a la izquierda la dirección de la página
       —la del editor en la web, `tauri.localhost` en el escritorio—, que no
-      dice nada del papel y que una página no puede cambiar. Este pie lo dibuja
+      dice nada del papel y que una página no puede cambiar. Estos los dibuja
       la propia hoja con las cajas de margen de `@page`, sin depender de esa
       casilla. Las entienden Chrome y Edge desde la versión 131 y el webview de
       Windows; Firefox, Safari y el webview de Linux las ignoran, y allí queda
-      el pie del navegador.
+      lo que ponga el navegador.
+
+      Chrome retira lo suyo lado por lado: su pie, si la página trae alguna
+      caja abajo, y su encabezado —fecha, hora y título—, si trae alguna
+      arriba. Por eso, en cuanto el documento pide cabecera o pie, la hoja
+      ocupa los dos lados, con una caja vacía en el que no lleva nada: con solo
+      el pie, arriba seguía saliendo el encabezado del navegador, que desde el
+      formato no se podía quitar. Si no pide ninguno, no se toca nada y el
+      navegador imprime lo suyo según su casilla, como siempre.
 
       Mientras se imprime, el título de la página es también el del documento:
       es lo que el navegador pone arriba si se deja su encabezado, y lo que
@@ -14034,22 +14062,50 @@ window.onload = async () => {
     function textoCss(texto) {
         return `"${String(texto).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ')}"`;
     }
-    function prepararPieDeImpresion() {
-        let sheet = document.getElementById('doc-print-footer-style');
+    // La fecha del papel, escrita entera y en el idioma de la aplicación:
+    // «12/11/2026» se lee de dos maneras según el país.
+    function fechaParaImprimir() {
+        const idioma = window.__edimarkLang || document.documentElement.lang || 'es';
+        try {
+            return new Date().toLocaleDateString(idioma, { dateStyle: 'long' });
+        } catch (error) {
+            return new Date().toLocaleDateString();
+        }
+    }
+    function prepararMargenesDeImpresion() {
+        let sheet = document.getElementById('doc-print-margins-style');
         if (!sheet) {
             sheet = document.createElement('style');
-            sheet.id = 'doc-print-footer-style';
+            sheet.id = 'doc-print-margins-style';
             document.head.appendChild(sheet);
         }
         const nombre = nombreParaImprimir();
-        const pie = effectiveDocumentFormat().printFooter;
-        if (pie === 'page' || pie === 'name') {
+        const formato = effectiveDocumentFormat();
+        const cabecera = ['name', 'date', 'name-date'].includes(formato.printHeader) ? formato.printHeader : 'none';
+        const pie = ['page', 'name'].includes(formato.printFooter) ? formato.printFooter : 'none';
+        if (cabecera !== 'none' || pie !== 'none') {
             const hoja = document.getElementById('html-output');
             const letra = hoja ? getComputedStyle(hoja).fontFamily : 'serif';
             const caja = `font-family: ${letra}; font-size: 9pt; color: #555;`;
-            const izquierda = pie === 'name' && nombre ? `@bottom-left { content: ${textoCss(nombre)}; ${caja} }` : '';
-            const derecha = `@bottom-right { content: counter(page) " / " counter(pages); ${caja} }`;
-            sheet.textContent = `@media print { @page { ${izquierda} ${derecha} } }`;
+            const cajas = [];
+            if ((cabecera === 'name' || cabecera === 'name-date') && nombre) {
+                cajas.push(`@top-left { content: ${textoCss(nombre)}; ${caja} }`);
+            }
+            if (cabecera === 'date' || cabecera === 'name-date') {
+                cajas.push(`@top-right { content: ${textoCss(fechaParaImprimir())}; ${caja} }`);
+            }
+            // Sin nada que poner arriba, una caja vacía: es lo que hace que
+            // Chrome no ponga su encabezado.
+            if (!cajas.length) cajas.push('@top-left { content: ""; }');
+            if (pie === 'name' && nombre) {
+                cajas.push(`@bottom-left { content: ${textoCss(nombre)}; ${caja} }`);
+            }
+            if (pie !== 'none') {
+                cajas.push(`@bottom-right { content: counter(page) " / " counter(pages); ${caja} }`);
+            } else {
+                cajas.push('@bottom-left { content: ""; }');
+            }
+            sheet.textContent = `@media print { @page { ${cajas.join(' ')} } }`;
         } else {
             sheet.textContent = '';
         }
@@ -14058,13 +14114,13 @@ window.onload = async () => {
             document.title = nombre;
         }
     }
-    function terminarPieDeImpresion() {
+    function terminarMargenesDeImpresion() {
         if (tituloAntesDeImprimir === null) return;
         document.title = tituloAntesDeImprimir;
         tituloAntesDeImprimir = null;
     }
-    window.addEventListener('beforeprint', prepararPieDeImpresion);
-    window.addEventListener('afterprint', terminarPieDeImpresion);
+    window.addEventListener('beforeprint', prepararMargenesDeImpresion);
+    window.addEventListener('afterprint', terminarMargenesDeImpresion);
 
     /*
       La página impresa, dicha en `@page`: el papel del documento y sus

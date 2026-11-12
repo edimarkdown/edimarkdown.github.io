@@ -138,7 +138,7 @@ The magnifier (or `Ctrl+F`) opens the search box. It highlights all matches, `En
 Next to the character count is a button showing the document's language (`ES`, `CA`...). Clicking it opens **This document**, with two tabs:
 
 * **Document**: language, author, automatic table of contents and section numbering.
-* **Format**: alignment, font and size, line spacing, paper size, margins, indentation and footer when printing.
+* **Format**: alignment, font and size, line spacing, paper size, margins, indentation, and header and footer when printing.
 
 Page margins are set here. A `<style>` written in the document changes how the text looks, such as its colour or background, but only inside the sheet, and it does not move the page margins or measurements. The exported HTML keeps it as it is.
 
@@ -157,7 +157,7 @@ Everything you set is saved inside the `.md` file itself, in metadata lines at t
 * **EPUB**: a digital book compatible with EPUB 3 readers.
 * **HTML**: a self-contained web page, with styles and formulas included.
 * **TEX (LaTeX)**: a complete `.tex` file, ready to compile.
-* **PDF**: opens the print dialog ("Save as PDF"); it produces exactly what you see on screen. With **Footer when printing**, in the document format, every page carries the page number at its foot, or the document's name and the number, without ticking the browser's headers and footers option. It works in Chrome, Edge and the Windows app; Firefox and Safari only give the number with that option, and in the macOS and Linux apps this footer does not appear.
+* **PDF**: opens the print dialog ("Save as PDF"); it produces exactly what you see on screen. With **Header when printing** and **Footer when printing**, in the document format, every page carries the document's name, the date or both at its head, and the page number, or the name and the number, at its foot. As soon as you choose either, the browser's own header and footer stop appearing, even if its headers and footers option is ticked; if you choose neither, it prints as always. It works in Chrome, Edge and the Windows app; in Firefox and Safari that option still decides, and in the macOS and Linux apps they do not appear.
 
 The copy button, next to Export, sends the content to the clipboard as Markdown, HTML or LaTeX, without creating a file.
 

@@ -238,3 +238,15 @@ test('el pie al imprimir admite sus tres valores y viaja en el bloque de metadat
   assert.equal(documentFormat.readFromFrontMatter('print-footer: page').printFooter, 'page');
   assert.equal(resolveDocumentFormat({ printFooter: 'none' }, { printFooter: 'page' }).printFooter, 'page');
 });
+
+test('la cabecera al imprimir admite sus cuatro valores y viaja en el bloque de metadatos', () => {
+  assert.equal(normalizeDocumentFormat({ printHeader: 'Name' }).printHeader, 'name');
+  assert.equal(normalizeDocumentFormat({ printHeader: 'date' }).printHeader, 'date');
+  assert.equal(normalizeDocumentFormat({ printHeader: 'name-date' }).printHeader, 'name-date');
+  assert.equal(normalizeDocumentFormat({ printHeader: 'none' }).printHeader, 'none');
+  assert.equal(normalizeDocumentFormat({ printHeader: 'page' }).printHeader, '');
+  const entries = documentFormat.toFrontMatterEntries({ printHeader: 'name-date', printFooter: 'page' });
+  assert.deepEqual(entries.map(entry => entry.lines[0]), ['print-header: "name-date"', 'print-footer: "page"']);
+  assert.equal(documentFormat.readFromFrontMatter('print-header: date').printHeader, 'date');
+  assert.equal(resolveDocumentFormat({ printHeader: 'none' }, { printHeader: 'name' }).printHeader, 'name');
+});

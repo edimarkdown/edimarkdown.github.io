@@ -35,6 +35,11 @@
     formatos de oficina no lo reciben.
   */
   const PRINT_FOOTERS = ['none', 'page', 'name'];
+  /*
+    Y la cabecera: nada, el nombre del documento, la fecha en que se imprime o
+    las dos cosas. Como el pie, es cosa del papel que sale del navegador.
+  */
+  const PRINT_HEADERS = ['none', 'name', 'date', 'name-date'];
 
   /*
     Familias genéricas en vez de nombres sueltos: cada formato de salida entiende
@@ -103,6 +108,7 @@
     indent: '',
     hyphenate: '',
     pageBreakBeforeH1: '',
+    printHeader: '',
     printFooter: '',
   };
 
@@ -177,6 +183,9 @@
       indent: normalizeSwitch(source.indent),
       hyphenate: normalizeSwitch(source.hyphenate),
       pageBreakBeforeH1: normalizeSwitch(source.pageBreakBeforeH1),
+      printHeader: PRINT_HEADERS.includes(String(source.printHeader ?? '').trim().toLowerCase())
+        ? String(source.printHeader).trim().toLowerCase()
+        : '',
       printFooter: PRINT_FOOTERS.includes(String(source.printFooter ?? '').trim().toLowerCase())
         ? String(source.printFooter).trim().toLowerCase()
         : '',
@@ -221,6 +230,7 @@
     ['indent', 'indent'],
     ['hyphenate', 'hyphenate'],
     ['pageBreakBeforeH1', 'pagebreak-before-h1'],
+    ['printHeader', 'print-header'],
     ['printFooter', 'print-footer'],
   ];
 
@@ -486,6 +496,7 @@
     FONT_KINDS,
     ORIENTATIONS,
     PRINT_FOOTERS,
+    PRINT_HEADERS,
     FONT_STACKS,
     PAPER_SIZES,
     MARGIN_SIDES,

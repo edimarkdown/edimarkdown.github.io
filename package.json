@@ -1,6 +1,6 @@
 {
   "name": "edimarkdown.github.io",
-  "version": "3.5.5",
+  "version": "3.5.6",
   "description": "Editor de Markdown con LaTeX que exporta a Word, LibreOffice, PDF, EPUB y otros formatos.",
   "main": "i18n.js",
   "scripts": {

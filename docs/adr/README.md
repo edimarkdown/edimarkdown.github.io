@@ -15,6 +15,7 @@ las alternativas descartadas y sus consecuencias.
 | [8](0008-el-cambio-de-disposicion-termina-cuando-acaban-sus-animaciones.md) | El cambio de disposición termina cuando acaban sus animaciones | aceptado |
 | [9](0009-los-estilos-del-documento-se-aplican-solo-a-la-hoja-y-sin-la-geometria-de-la-pagina.md) | Los estilos del documento se aplican solo a la hoja y sin la geometría de la página | aceptado |
 | [10](0010-la-hoja-impresa-puede-llevar-su-propio-pie-con-el-nombre-y-el-numero-de-pagina.md) | La hoja impresa puede llevar su propio pie con el nombre y el número de página | aceptado |
+| [11](0011-la-cabecera-impresa-es-una-opcion-del-formato-y-con-cabecera-o-pie-propios-no-salen-los-del-navegador.md) | La cabecera impresa es una opción del formato, y con cabecera o pie propios no salen los del navegador | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número

@@ -19,7 +19,7 @@ El pie es un ajuste del formato, **Pie al imprimir** (`printFooter`, clave
 las opciones generales o en cada documento. De partida vale «Ninguno», que es
 como se imprimía antes de existir el ajuste.
 
-Al imprimir (`prepararPieDeImpresion`, en el botón y en `beforeprint`), si el
+Al imprimir (`prepararMargenesDeImpresion`, en el botón y en `beforeprint`), si el
 documento pide pie, la página añade una hoja de estilo con cajas de margen de
 `@page`: `@bottom-right` con `counter(page) " / " counter(pages)` y, con
 «Nombre y número de página», `@bottom-left` con el nombre del documento, en la
@@ -48,9 +48,10 @@ aplicación.
 
 - En Chrome, Edge y la aplicación de Windows, quien lo elige tiene el pie sin
   tocar el cuadro de impresión; quien no, imprime como siempre.
-- Con la casilla del navegador marcada, salen los dos pies: el del navegador
-  pegado al borde y el de la hoja alineado con el texto. No se solapan, pero el
-  número sale dos veces.
+- Con la casilla del navegador marcada, Chrome retira su pie al ver el de la
+  hoja, pero no su encabezado. De ahí sale el
+  [ADR 11](0011-la-cabecera-impresa-es-una-opcion-del-formato-y-con-cabecera-o-pie-propios-no-salen-los-del-navegador.md),
+  que hace opcional también la cabecera y quita la del navegador.
 
 ## Evidencia
 
@@ -59,8 +60,7 @@ aplicación.
   Firefox y Safari no las admiten.
 - PDF de prueba desde la aplicación con Chromium 151 (2026-11-05): cinco
   páginas con `informe "aclaraciones".md` y `1 / 5`… `5 / 5`, alineados con los
-  márgenes del texto. Con el pie del navegador activado a la vez, cada uno va
-  en su línea.
+  márgenes del texto.
 
 ## Riesgos y limitaciones
 
@@ -71,8 +71,8 @@ aplicación.
 
 ## Validación
 
-Prueba de navegador `al imprimir, el pie lleva lo que pide el documento: nada,
-el número o el nombre y el número`, en Chromium y Firefox, que también elige el
+Prueba de navegador `al imprimir, la cabecera y el pie llevan lo que pide el
+documento, y quitan los del navegador`, en Chromium y Firefox, que también elige el
 valor en el desplegable y comprueba que llega al Markdown; prueba unitaria del
 ajuste en `document-format.test.mjs`, y el PDF de prueba descrito arriba.
 La aplicación de Windows se comprueba en una máquina virtual con Windows 11.

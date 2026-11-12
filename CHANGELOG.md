@@ -4,6 +4,11 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.6] - 2026-11-12
+
+- La cabecera de las páginas impresas es una opción: **Cabecera al imprimir**, en el formato del documento, con «Ninguna», «Nombre del documento», «Fecha» o «Nombre y fecha». Como el pie, se puede fijar para todos los documentos en las opciones generales o para uno solo, y de partida no hay cabecera.
+- En Chrome, Edge y la aplicación de Windows, al elegir un pie o una cabecera ya no sale arriba el encabezado del navegador con la fecha, la hora y el nombre. Antes, con «Pie al imprimir» el navegador retiraba su pie pero dejaba su encabezado, que desde el formato no se podía quitar ni cambiar. Quien no elige ni cabecera ni pie imprime como siempre: lo que ponga el navegador según su casilla de encabezado y pie.
+
 ## [3.5.5] - 2026-11-08
 
 - Al imprimir y en la hoja, una lista que no cabe en lo que queda de página empieza en ella y sigue en la siguiente, partida entre dos puntos. Antes, si era más corta que una página, bajaba entera y dejaba la anterior con un hueco en blanco de hasta media hoja. Cada punto sigue entero.

@@ -2746,6 +2746,7 @@ test('los ajustes del documento se guardan y se recuperan al volver', async (t) 
         indent: '',
         hyphenate: '',
         pageBreakBeforeH1: 'no',
+        printHeader: 'none',
         printFooter: 'none',
       },
     }
@@ -3815,8 +3816,8 @@ test('el formato del documento se escribe en el archivo y se ve en la vista prev
   );
   assert.deepEqual(
     await page.locator('#doc-format-fields .document-format-group').nth(1).locator('label').allTextContents(),
-    ['Tamaño de papel', 'Orientación', 'Cada H1 empieza en página nueva', 'Pie al imprimir', 'Superior', 'Derecho', 'Inferior', 'Izquierdo'],
-    'papel, orientación, salto, pie y márgenes deben quedar juntos',
+    ['Tamaño de papel', 'Orientación', 'Cada H1 empieza en página nueva', 'Cabecera al imprimir', 'Pie al imprimir', 'Superior', 'Derecho', 'Inferior', 'Izquierdo'],
+    'papel, orientación, salto, cabecera, pie y márgenes deben quedar juntos',
   );
   await page.locator('#doc-format-fields-align').selectOption('justify');
   await page.locator('#doc-format-fields-font').selectOption('serif');
@@ -8501,7 +8502,7 @@ test('un <style> del documento se queda en la hoja y vuelve entero al Markdown',
   assert.doesNotMatch(vuelta.html, /data-edimark-css|#html-output/);
 });
 
-test('al imprimir, el pie lleva lo que pide el documento: nada, el número o el nombre y el número', async (t) => {
+test('al imprimir, la cabecera y el pie llevan lo que pide el documento, y quitan los del navegador', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());
   const tituloDeLaApp = await page.title();
@@ -8509,12 +8510,13 @@ test('al imprimir, el pie lleva lo que pide el documento: nada, el número o el 
     await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
     const estado = await page.evaluate(() => ({
       titulo: document.title,
-      css: document.getElementById('doc-print-footer-style').textContent,
+      css: document.getElementById('doc-print-margins-style').textContent,
     }));
     await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
     return estado;
   };
-  // De partida no hay pie, como antes de existir la opción.
+  // De partida no hay cabecera ni pie, como antes de existir las opciones: la
+  // hoja no pone nada y el navegador imprime lo suyo según su casilla.
   await page.evaluate(() => { newDoc('informe "final".md', '# Informe\n\nTexto.'); });
   const sinPie = await imprimir();
   assert.equal(sinPie.css, '');
@@ -8525,6 +8527,10 @@ test('al imprimir, el pie lleva lo que pide el documento: nada, el número o el 
   const soloNumero = await imprimir();
   assert.doesNotMatch(soloNumero.css, /@bottom-left/);
   assert.match(soloNumero.css, /@bottom-right \{ content: counter\(page\) " \/ " counter\(pages\);/);
+  // Con solo el pie, arriba va una caja vacía: sin ella Chrome deja su
+  // encabezado con la fecha, la hora y el título.
+  assert.match(soloNumero.css, /@top-left \{ content: ""; \}/);
+  assert.doesNotMatch(soloNumero.css, /@top-right/);
 
   await page.evaluate(() => { markdownEditor.setValue('---\nprint-footer: "name"\n---\n\n# Informe\n\nTexto.'); });
   const conNombre = await imprimir();
@@ -8538,13 +8544,48 @@ test('al imprimir, el pie lleva lo que pide el documento: nada, el número o el 
   assert.doesNotMatch(sinNombre.css, /@bottom-left/);
   assert.match(sinNombre.css, /@bottom-right/);
 
-  // El desplegable del formato escribe la opción en el documento.
+  // La cabecera: el nombre a la izquierda, la fecha a la derecha, y abajo
+  // una caja vacía si el documento no pide pie.
+  await page.evaluate(() => { newDoc('informe "final".md', '---\nprint-header: "name"\n---\n\n# Informe\n\nTexto.'); });
+  const soloCabecera = await imprimir();
+  assert.match(soloCabecera.css, /@top-left \{ content: "informe \\"final\\"\.md";/);
+  assert.doesNotMatch(soloCabecera.css, /@top-right/);
+  assert.match(soloCabecera.css, /@bottom-left \{ content: ""; \}/);
+  assert.doesNotMatch(soloCabecera.css, /@bottom-right/);
+
+  const anio = String(new Date().getFullYear());
+  await page.evaluate(() => { markdownEditor.setValue('---\nprint-header: "date"\n---\n\n# Informe\n\nTexto.'); });
+  const soloFecha = await imprimir();
+  assert.doesNotMatch(soloFecha.css, /@top-left/);
+  assert.match(soloFecha.css, new RegExp(`@top-right \\{ content: "[^"]*${anio}[^"]*";`));
+
+  await page.evaluate(() => { markdownEditor.setValue('---\nprint-header: "name-date"\nprint-footer: "name"\n---\n\n# Informe\n\nTexto.'); });
+  const todo = await imprimir();
+  assert.match(todo.css, /@top-left \{ content: "informe \\"final\\"\.md";/);
+  assert.match(todo.css, /@top-right \{ content: "/);
+  assert.match(todo.css, /@bottom-left \{ content: "informe \\"final\\"\.md";/);
+  assert.match(todo.css, /@bottom-right/);
+  assert.doesNotMatch(todo.css, /content: "";/);
+
+  // Un documento sin nombre que pide el nombre arriba: nada escrito, pero la
+  // caja vacía sigue quitando el encabezado del navegador.
+  await page.evaluate(() => { newDoc('', '---\nprint-header: "name"\nprint-footer: "name"\n---\n\nTexto.'); });
+  const cabeceraSinNombre = await imprimir();
+  assert.match(cabeceraSinNombre.css, /@top-left \{ content: ""; \}/);
+
+  // Los desplegables del formato escriben las opciones en el documento.
   await page.locator('#doc-format-toolbar-btn').click();
   await page.locator('#doc-format-tab-format').click();
   assert.equal(await page.locator('#doc-format-fields-print-footer').inputValue(), 'name');
   await page.locator('#doc-format-fields-print-footer').selectOption('page');
   await page.locator('#doc-format-save-btn').click();
   assert.match(await page.evaluate(() => markdownEditor.getValue()), /print-footer: "page"/);
+  await page.locator('#doc-format-toolbar-btn').click();
+  await page.locator('#doc-format-tab-format').click();
+  assert.equal(await page.locator('#doc-format-fields-print-header').inputValue(), 'name');
+  await page.locator('#doc-format-fields-print-header').selectOption('name-date');
+  await page.locator('#doc-format-save-btn').click();
+  assert.match(await page.evaluate(() => markdownEditor.getValue()), /print-header: "name-date"/);
 });
 
 test('un Markdown guardado con marca BOM abre con su primer título', async (t) => {

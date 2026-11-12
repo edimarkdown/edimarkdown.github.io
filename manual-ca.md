@@ -138,7 +138,7 @@ La lupa (o `Ctrl+F`) obre el cercador. Ressalta totes les coincidències, `Enter
 Al costat del comptador de caràcters hi ha un botó amb l'idioma del document (`ES`, `CA`...). En prémer-lo s'obre **Aquest document**, amb dues pestanyes:
 
 * **Document**: idioma, autor, índex automàtic i numeració d'apartats.
-* **Format**: alineació, tipus i mida de lletra, interlineat, mida de paper, marges, sagnia i peu en imprimir.
+* **Format**: alineació, tipus i mida de lletra, interlineat, mida de paper, marges, sagnia, i capçalera i peu en imprimir.
 
 Els marges de la pàgina es fixen aquí. Un `<style>` escrit en el document canvia l'aspecte del text, com el color o el fons, però només dins del full, i no mou els marges ni les mides de la pàgina. L'HTML exportat el conserva tal qual.
 
@@ -157,7 +157,7 @@ Tot el que fixis es desa dins del mateix `.md`, en unes línies de metadades al 
 * **EPUB**: llibre digital compatible amb lectors EPUB 3.
 * **HTML**: pàgina web autònoma, amb els estils i les fórmules dins.
 * **TEX (LaTeX)**: un `.tex` complet, a punt per compilar.
-* **PDF**: obre el diàleg d'impressió («Desar com a PDF»); en surt exactament el que veus en pantalla. Amb **Peu en imprimir**, al format del document, cada pàgina porta al peu el número de pàgina, o el nom del document i el número, sense marcar la casella de capçalera i peu del navegador. Surt al Chrome, a l'Edge i a l'aplicació de Windows; el Firefox i el Safari només donen el número amb aquesta casella, i a les aplicacions de macOS i Linux aquest peu no surt.
+* **PDF**: obre el diàleg d'impressió («Desar com a PDF»); en surt exactament el que veus en pantalla. Amb **Capçalera en imprimir** i **Peu en imprimir**, al format del document, cada pàgina porta a dalt el nom del document, la data o totes dues coses, i al peu el número de pàgina, o el nom i el número. Així que en tries una de les dues, la capçalera i el peu del navegador deixen de sortir, encara que la seva casella de capçalera i peu estigui marcada; si no en tries cap, s'imprimeix com sempre. Surt al Chrome, a l'Edge i a l'aplicació de Windows; al Firefox i al Safari continua manant aquesta casella, i a les aplicacions de macOS i Linux no surten.
 
 El botó de copiar, al costat d'Exportar, porta el contingut al porta-retalls en Markdown, HTML o LaTeX, sense generar cap arxiu.
 
