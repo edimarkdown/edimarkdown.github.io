@@ -4,6 +4,11 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.8] - 2026-11-12
+
+- La cabecera y el pie al imprimir se ven ya en el editor visual: en Chrome, Edge y la aplicación de Windows, cada página lleva en sus márgenes lo que saldrá en el papel —el nombre del documento, la fecha y el número de página—, con su letra y en su sitio. Antes solo se veían al abrir el cuadro de impresión.
+- En Firefox, Safari y las aplicaciones de macOS y Linux, donde esa cabecera y ese pie no se imprimen, un aviso bajo el ajuste lo dice. Antes había que saberlo por el manual.
+
 ## [3.5.7] - 2026-11-12
 
 - En las aplicaciones de Linux y macOS, lo que se imprime o se guarda en PDF sale al tamaño que pide el documento y corta las páginas donde la vista previa. Antes, en Linux todo salía un 6,7 % más grande y el papel no cortaba donde la hoja: el manual, de 10 páginas, ocupaba 16, dos de ellas en blanco. En macOS salía un 12 % más pequeño.
