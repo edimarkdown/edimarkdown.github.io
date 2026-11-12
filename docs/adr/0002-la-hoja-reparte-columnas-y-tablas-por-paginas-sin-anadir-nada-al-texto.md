@@ -89,8 +89,12 @@ y vuelve al terminar (`afterprint` o lo primero que se toque).
 
 ## Riesgos y limitaciones
 
-- Con una tabla partida, la pantalla y el papel coinciden en Chromium. En
-  Firefox no se ha podido comprobar el PDF de forma automática.
+- Con una tabla partida, la pantalla y el papel coinciden en Chromium y en
+  Firefox, que respetan el salto forzado entre filas y repiten la cabecera
+  (PDF de una tabla de prueba y del manual, 2026-11-12). WebKit —Safari y las
+  aplicaciones de macOS y Linux— no hace ninguna de las dos cosas: allí el
+  corte dentro de la tabla se desvía de la hoja en una fila
+  ([ADR 12](0012-la-hoja-compensa-la-escala-de-impresion-de-webkit-midiendo-el-ancho-del-papel.md)).
 - Si en el documento la estimación de la pieza de cierre de columnas se queda
   corta, la página lleva un punto menos que en el papel: con la lista de prueba,
   en una de cuatro páginas.

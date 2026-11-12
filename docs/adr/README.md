@@ -16,6 +16,8 @@ las alternativas descartadas y sus consecuencias.
 | [9](0009-los-estilos-del-documento-se-aplican-solo-a-la-hoja-y-sin-la-geometria-de-la-pagina.md) | Los estilos del documento se aplican solo a la hoja y sin la geometría de la página | aceptado |
 | [10](0010-la-hoja-impresa-puede-llevar-su-propio-pie-con-el-nombre-y-el-numero-de-pagina.md) | La hoja impresa puede llevar su propio pie con el nombre y el número de página | aceptado |
 | [11](0011-la-cabecera-impresa-es-una-opcion-del-formato-y-con-cabecera-o-pie-propios-no-salen-los-del-navegador.md) | La cabecera impresa es una opción del formato, y con cabecera o pie propios no salen los del navegador | aceptado |
+| [12](0012-la-hoja-compensa-la-escala-de-impresion-de-webkit-midiendo-el-ancho-del-papel.md) | La hoja compensa la escala de impresión de WebKit midiendo el ancho del papel | aceptado |
+| [13](0013-el-reparto-en-paginas-deja-un-milimetro-de-holgura-al-final-de-cada-pagina.md) | El reparto en páginas deja un milímetro de holgura al final de cada página | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número
