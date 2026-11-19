@@ -4,6 +4,10 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.10] - 2026-11-19
+
+- Al volver a una pestaña, el Markdown y la vista previa aparecen donde se dejaron. Antes, si el cursor había quedado fuera de la vista —por ejemplo, tras bajar con la barra—, la vista previa volvía a la línea del cursor y dejaba de coincidir con el Markdown; en Safari y en las aplicaciones de Linux y macOS se movían los dos paneles hasta el cursor.
+
 ## [3.5.9] - 2026-11-19
 
 - Al escribir en el editor Markdown, la vista previa sigue enseñando lo que se escribe. Antes, en un documento de varias páginas, cada repintado la descolocaba: lo que se estaba escribiendo quedaba por debajo de la pantalla, tanto más lejos cuantas más páginas tuviera encima. Pasaba igual en una lista, una tabla, junto a una fórmula o en un párrafo, y en todos los navegadores y aplicaciones.
