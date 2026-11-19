@@ -20,6 +20,7 @@ las alternativas descartadas y sus consecuencias.
 | [13](0013-el-reparto-en-paginas-deja-un-milimetro-de-holgura-al-final-de-cada-pagina.md) | El reparto en páginas deja un milímetro de holgura al final de cada página | aceptado |
 | [14](0014-la-hoja-ensena-la-cabecera-y-el-pie-del-papel-solo-donde-el-motor-los-imprime.md) | La hoja enseña la cabecera y el pie del papel solo donde el motor los imprime | aceptado |
 | [15](0015-la-impresion-sale-de-una-copia-de-la-hoja-partida-en-paginas.md) | La impresión sale de una copia de la hoja partida en páginas | propuesto |
+| [16](0016-el-documento-recuerda-su-perfil-y-lo-trae-a-los-equipos-que-no-lo-tienen.md) | El documento recuerda su perfil y lo trae a los equipos que no lo tienen | aceptado |
 
 Para añadir una: `nuevo-adr "Título de la decisión"` desde la raíz del
 repositorio, que copia [la plantilla](0000-plantilla.md) con el número

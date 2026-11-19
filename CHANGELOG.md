@@ -4,6 +4,13 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.11] - 2026-11-19
+
+- El documento recuerda qué perfil de formato se le aplicó. Al volver a abrir sus opciones, el perfil sale elegido, y con «(modificado)» si después se ha cambiado algún ajuste. Antes salía siempre «Ninguno», aunque el documento conservara la cabecera, el pie y el resto de ajustes del perfil, y parecía que el perfil no se había cargado. Un documento anterior a esta versión también muestra su perfil si sus ajustes son exactamente los de uno guardado.
+- Al abrir en otro equipo un documento con un perfil que allí no está, el perfil se añade solo a la lista y se puede aplicar a otros documentos. Un perfil que se borra no vuelve, aunque se abran documentos que lo usaron.
+- «Quitar todo del documento» vacía también la profundidad del índice, que antes se quedaba como estaba.
+- Al intentar guardar como perfil solo el idioma o el autor, el aviso explica que un perfil guarda el texto, la página y el índice, y que el idioma y el autor son de cada documento. Antes decía que no había ningún ajuste que guardar.
+
 ## [3.5.10] - 2026-11-19
 
 - Al volver a una pestaña, el Markdown y la vista previa aparecen donde se dejaron. Antes, si el cursor había quedado fuera de la vista —por ejemplo, tras bajar con la barra—, la vista previa volvía a la línea del cursor y dejaba de coincidir con el Markdown; en Safari y en las aplicaciones de Linux y macOS se movían los dos paneles hasta el cursor.

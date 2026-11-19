@@ -240,6 +240,51 @@
     return profileDifferences(profile, settings).length === 0;
   }
 
+  /*
+    Un documento sin la línea de su perfil —anterior a ella, o escrito a mano—
+    se reconoce si sus ajustes son exactamente los de un perfil: ni uno más ni
+    uno menos. Que coincida solo lo que el perfil fija no basta, porque uno que
+    fije nada más la letra coincidiría con casi cualquier documento. Y si dos
+    perfiles encajan igual, no se elige ninguno.
+  */
+  function profileEqualsSettings(profile, settings) {
+    const wanted = normalizeProfile(profile);
+    const current = profileFromSettings(settings, wanted.name);
+    return ['format', 'outline', 'citations', 'latex'].every(section => (
+      Object.keys(wanted[section]).every(field => wanted[section][field] === current[section][field])
+    ));
+  }
+
+  function findProfileForSettings(profiles, settings) {
+    if (isEmptyProfile(profileFromSettings(settings))) return null;
+    const found = (Array.isArray(profiles) ? profiles : []).filter(profile => profileEqualsSettings(profile, settings));
+    return found.length === 1 ? normalizeProfile(found[0]) : null;
+  }
+
+  /*
+    El documento dice de qué perfil salió con una línea propia en su bloque de
+    metadatos. Así viaja con el `.md` a otro equipo, donde ese perfil se puede
+    volver a componer con los ajustes que el propio documento lleva escritos.
+    Pandoc no conoce la clave y la deja pasar sin efecto.
+
+    No es `edimark-profile`, que es la primera línea de un archivo de perfil y
+    lleva su versión: aquí va un nombre, y la misma clave con dos sentidos se
+    confundiría.
+  */
+  const DOCUMENT_PROFILE_KEY = 'format-profile';
+
+  function readDocumentProfileName(frontMatter) {
+    const source = typeof frontMatter === 'string' ? frontMatter : '';
+    const match = source.match(new RegExp(`^${DOCUMENT_PROFILE_KEY}\\s*:\\s*(.*)$`, 'm'));
+    if (!match) return '';
+    return line(unquote(match[1].trim())).slice(0, MAX_NAME_LENGTH);
+  }
+
+  function documentProfileEntries(name) {
+    const clean = line(name).slice(0, MAX_NAME_LENGTH);
+    return clean ? [{ key: DOCUMENT_PROFILE_KEY, lines: [`${DOCUMENT_PROFILE_KEY}: ${quote(clean)}`] }] : [];
+  }
+
   function quote(value) {
     return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
   }
@@ -386,6 +431,11 @@
     applyProfileToSettings,
     profileDifferences,
     matchesProfile,
+    profileEqualsSettings,
+    findProfileForSettings,
+    DOCUMENT_PROFILE_KEY,
+    readDocumentProfileName,
+    documentProfileEntries,
     toYaml,
     fromYaml,
   };

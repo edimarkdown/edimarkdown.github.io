@@ -3622,6 +3622,140 @@ test('un perfil de formato se guarda una vez y se aplica a otros documentos', as
   assert.match(await page.locator('#markdown-input').inputValue(), /fontsize: "13pt"/);
 });
 
+test('el documento recuerda su perfil y lo trae a un equipo que no lo tiene', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  // En una pestaña propia: la del manual, que abre el primer arranque, no se
+  // guarda, y al recargar volvería a su texto.
+  await page.locator('#new-tab-btn').click();
+  await page.locator('#markdown-input').fill('# Trabajo\n\nTexto.\n');
+  await page.locator('#doc-format-toolbar-btn').click();
+  await page.locator('#doc-format-tab-format').click();
+  await page.locator('#doc-format-fields-print-header').selectOption('name');
+  await page.locator('#doc-format-fields-print-footer').selectOption('page');
+  await page.locator('#doc-format-profile-save').click();
+  await page.locator('#doc-format-profile-name').fill('Apuntes');
+  await page.locator('#doc-format-profile-form button[type="submit"]').click();
+  await page.locator('#doc-format-profile-form').waitFor({ state: 'hidden' });
+  await page.locator('#doc-format-save-btn').click();
+  const markdown = await page.evaluate(() => markdownEditor.getValue());
+  assert.match(markdown, /format-profile: "Apuntes"/, 'el nombre queda en el documento');
+
+  // Al volver a entrar, el cuadro enseña el perfil y no «Ninguno».
+  await page.evaluate(() => autosaveCurrentDoc());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => window.__edimarkReady === true);
+  await page.locator('#doc-format-toolbar-btn').click();
+  assert.equal(
+    await page.locator('#doc-format-profile').inputValue(),
+    'Apuntes',
+    `tras recargar: ${JSON.stringify(await page.evaluate(() => [markdownEditor.getValue().slice(0, 120), localStorage.getItem('edimarkweb-format-profiles')]))}`,
+  );
+
+  // Si los campos se apartan del perfil, el rótulo lo dice al momento.
+  await page.locator('#doc-format-tab-format').click();
+  await page.locator('#doc-format-fields-print-footer').selectOption('none');
+  assert.equal(await page.locator('#doc-format-profile option:checked').textContent(), 'Apuntes (modificado)');
+  // Volver a aplicarlo repone sus valores.
+  await page.locator('#doc-format-profile-apply').click();
+  assert.equal(await page.locator('#doc-format-fields-print-footer').inputValue(), 'page');
+  assert.equal(await page.locator('#doc-format-profile option:checked').textContent(), 'Apuntes');
+  await page.locator('#doc-format-cancel-btn').click();
+
+  // Otro equipo, sin perfiles: al abrir el archivo, el perfil se añade solo.
+  const otro = await openApp();
+  t.after(() => otro.context.close());
+  await otro.page.locator('#file-input').setInputFiles({
+    name: 'trabajo.md', mimeType: 'text/markdown', buffer: Buffer.from(markdown),
+  });
+  await otro.page.waitForFunction(() => document.querySelector('.tab[aria-selected="true"] .tab-name')?.textContent === 'trabajo.md');
+  await otro.page.locator('#status-toast-message').filter({ hasText: 'Apuntes' }).waitFor();
+  await otro.page.locator('#doc-format-toolbar-btn').click();
+  assert.equal(await otro.page.locator('#doc-format-profile').inputValue(), 'Apuntes');
+  assert.equal(await otro.page.locator('#doc-format-profile option:checked').textContent(), 'Apuntes');
+  // Y ya sirve para cualquier otro documento.
+  await otro.page.locator('#doc-format-cancel-btn').click();
+  await otro.page.locator('#new-tab-btn').click();
+  await otro.page.locator('#doc-format-toolbar-btn').click();
+  assert.equal(await otro.page.locator('#doc-format-profile').inputValue(), '');
+  await otro.page.locator('#doc-format-profile').selectOption('Apuntes');
+  await otro.page.locator('#doc-format-profile-apply').click();
+  await otro.page.locator('#doc-format-tab-format').click();
+  assert.equal(await otro.page.locator('#doc-format-fields-print-header').inputValue(), 'name');
+
+  // Borrado en este equipo, no vuelve aunque se abra otra vez el documento.
+  otro.page.on('dialog', dialog => dialog.accept());
+  await otro.page.locator('#doc-format-profile-delete').click();
+  await otro.page.waitForFunction(() => document.querySelectorAll('#doc-format-profile option').length === 1);
+  await otro.page.locator('#doc-format-cancel-btn').click();
+  await otro.page.locator('.tab-name', { hasText: 'trabajo.md' }).click();
+  await otro.page.locator('#doc-format-toolbar-btn').click();
+  assert.equal(await otro.page.locator('#doc-format-profile option:checked').textContent(), 'Apuntes (no guardado en este equipo)');
+  assert.equal(await otro.page.locator('#doc-format-profile-apply').isDisabled(), true);
+  assert.equal(await otro.page.evaluate(() => JSON.parse(localStorage.getItem('edimarkweb-format-profiles') || '[]').length), 0);
+});
+
+test('un documento de antes se reconoce por tener exactamente los ajustes de un perfil', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.locator('#doc-format-toolbar-btn').click();
+  await page.locator('#doc-format-tab-format').click();
+  await page.locator('#doc-format-fields-print-header').selectOption('name');
+  await page.locator('#doc-format-fields-print-footer').selectOption('page');
+  await page.locator('#doc-format-profile-save').click();
+  await page.locator('#doc-format-profile-name').fill('Apuntes');
+  await page.locator('#doc-format-profile-form button[type="submit"]').click();
+  await page.locator('#doc-format-profile-form').waitFor({ state: 'hidden' });
+  await page.locator('#doc-format-cancel-btn').click();
+
+  // Los mismos ajustes, escritos sin la línea del perfil.
+  const antiguo = '---\nprint-header: "name"\nprint-footer: "page"\n---\n\n# Antiguo\n';
+  await page.locator('#markdown-input').fill(antiguo);
+  await page.locator('#doc-format-toolbar-btn').click();
+  assert.equal(await page.locator('#doc-format-profile').inputValue(), 'Apuntes');
+  // Abrir el cuadro no escribe nada; «Aplicar», sí.
+  await page.locator('#doc-format-cancel-btn').click();
+  assert.equal(await page.evaluate(() => markdownEditor.getValue()), antiguo);
+  await page.locator('#doc-format-toolbar-btn').click();
+  await page.locator('#doc-format-save-btn').click();
+  assert.match(await page.evaluate(() => markdownEditor.getValue()), /format-profile: "Apuntes"/);
+
+  // Con un ajuste de más ya no es ese perfil.
+  await page.locator('#markdown-input').fill('---\nprint-header: "name"\nprint-footer: "page"\nfontsize: "11pt"\n---\n\n# Otro\n');
+  await page.locator('#doc-format-toolbar-btn').click();
+  assert.equal(await page.locator('#doc-format-profile').inputValue(), '');
+});
+
+test('«Quitar todo del documento» vacía todos los campos del cuadro', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.locator('#doc-format-toolbar-btn').click();
+  await page.locator('#doc-format-modal-overlay').waitFor({ state: 'visible' });
+  /*
+    Todos los campos, también los que se añadan más adelante: la profundidad
+    del índice se quedó fuera de la lista del botón y nadie lo vio.
+  */
+  const sinVaciar = await page.evaluate(() => {
+    const cuadro = document.getElementById('doc-format-modal-overlay');
+    const campos = Array.from(cuadro.querySelectorAll('select, input, textarea'))
+      .filter(el => !el.closest('#doc-format-profile-form') && el.id !== 'doc-format-profile' && el.type !== 'checkbox');
+    campos.forEach((el) => {
+      if (el.tagName === 'SELECT') {
+        const opcion = Array.from(el.options).find(o => o.value && o.value !== 'other');
+        if (opcion) el.value = opcion.value;
+      } else {
+        el.value = el.type === 'number' ? '2' : 'x';
+      }
+    });
+    document.getElementById('doc-format-reset-btn').click();
+    return campos.filter(el => el.value !== '').map(el => `${el.id}=${el.value}`);
+  });
+  assert.deepEqual(sinVaciar, []);
+});
+
 test('el índice y la numeración se recuerdan como ajuste', async (t) => {
   const { context, page } = await openApp();
   t.after(() => context.close());

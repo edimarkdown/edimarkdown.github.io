@@ -142,7 +142,7 @@ Xunto ao contador de caracteres hai un botón co idioma do documento (`ES`, `CA`
 
 As marxes da páxina fíxanse aquí. Un `<style>` escrito no documento cambia o aspecto do texto, como a cor ou o fondo, pero só dentro da folla, e non move as marxes nin as medidas da páxina. O HTML exportado lévao tal cal.
 
-Todo o que fixes gárdase dentro do propio `.md`, nunhas liñas de metadatos ao principio do ficheiro, así que viaxa co documento a calquera equipo. Se repites os mesmos axustes en varios traballos, gárdaos como **perfil** (arriba do cadro) para aplicalos dun clic noutro documento.
+Todo o que fixes gárdase dentro do propio `.md`, nunhas liñas de metadatos ao principio do ficheiro, así que viaxa co documento a calquera equipo. Se repites os mesmos axustes en varios traballos, gárdaos como **perfil** (arriba do cadro) para aplicalos dun clic noutro documento. O documento lembra que perfil se lle aplicou, e un anterior recoñéceo se os seus axustes son exactamente os dun perfil gardado: ao abrir o cadro verás que está escollido, con «(modificado)» se despois cambiaches algún axuste. Se o abres nun equipo que non ten ese perfil, engádese só á súa lista. Un perfil que borres non volve, aínda que abras documentos que o usaron. O perfil garda o texto, a páxina e o índice; o idioma e o autor son de cada documento.
 
 **Configuración → Opcións xerais…** garda os valores de partida para os documentos novos: idioma, autor, texto e páxina, portada do EPUB, bibliografía e opcións de LaTeX.
 

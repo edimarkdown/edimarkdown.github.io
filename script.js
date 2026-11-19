@@ -3,7 +3,7 @@
   y src-tauri/Cargo.toml; una prueba de test/desktop-updater.test.mjs vigila que
   las cuatro coincidan.
 */
-const APP_VERSION = '3.5.10';
+const APP_VERSION = '3.5.11';
 /*
   «No volver a mostrar» vale para siempre. Hasta la 3.5.0 la clave llevaba la
   versión y el aviso volvía con cada versión nueva; quien lo descartó entonces
@@ -3861,6 +3861,8 @@ function switchTo(id, { deferPreview = false } = {}) {
     }
     restoreDocView(doc.view);
     updateDirtyIndicator(id, doc.md !== doc.lastSaved);
+    // Un documento que trae un perfil que este equipo no tiene lo añade.
+    if (typeof window.__edimarkAdoptDocumentProfile === 'function') window.__edimarkAdoptDocumentProfile();
 }
 
 /*
@@ -7981,7 +7983,7 @@ async function importFileWithPandoc(file, { index = 1, total = 1 } = {}) {
     }
     if (format === 'pdf') {
         try {
-            const { importPdf } = await import('./pdf-import.js?v=3.5.10');
+            const { importPdf } = await import('./pdf-import.js?v=3.5.11');
             const name = getSafeDocumentName(file.name);
             // Crear el documento ocurre dentro del diálogo, que se queda a la
             // vista avisando: con un informe entero no es cosa de un instante.
@@ -15235,12 +15237,21 @@ window.onload = async () => {
       el mismo bloque, y reescribirlo una vez por ajuste movería el cursor tres
       veces y dejaría tres pasos en el historial de deshacer.
     */
-    function setDocumentFormat(format, outline) {
+    function setDocumentFormat(format, outline, profileName = '') {
         const api = documentFormatApi();
         if (!api) return;
+        const profiles = formatProfilesApi();
         writeDocumentMetadata(
-            [...api.toFrontMatterEntries(format), ...outlineEntries(outline)],
-            [...api.YAML_KEYS.map(([, key]) => key), ...OUTLINE_YAML_KEYS],
+            [
+                ...api.toFrontMatterEntries(format),
+                ...outlineEntries(outline),
+                ...(profiles ? profiles.documentProfileEntries(profileName) : []),
+            ],
+            [
+                ...api.YAML_KEYS.map(([, key]) => key),
+                ...OUTLINE_YAML_KEYS,
+                ...(profiles ? [profiles.DOCUMENT_PROFILE_KEY] : []),
+            ],
         );
     }
 
@@ -15316,6 +15327,17 @@ window.onload = async () => {
       programa, no del documento, y por eso no viajan con él.
     */
     const FORMAT_PROFILES_KEY = 'edimarkweb-format-profiles';
+    /*
+      Los perfiles que se han borrado en este equipo. Un documento recuerda de
+      qué perfil salió y, al abrirlo donde ese perfil no está, se añade solo:
+      sin esta lista, borrar un perfil no serviría de nada mientras quedara un
+      documento que lo nombrara. Guardar otra vez un perfil con ese nombre lo
+      saca de aquí.
+    */
+    const FORGOTTEN_PROFILES_KEY = 'edimarkweb-format-profiles-forgotten';
+    // El perfil que sigue el documento del cuadro abierto: el que dice su
+    // bloque de metadatos, o el que se acaba de aplicar o de guardar en él.
+    let documentProfileName = '';
 
     function formatProfilesApi() {
         return window.EdiMarkFormatProfiles;
@@ -15348,41 +15370,132 @@ window.onload = async () => {
         return readFormatProfiles().find(profile => profile.name.toLowerCase() === wanted) || null;
     }
 
-    /* Lo que dicen ahora mismo los campos del cuadro, en forma de perfil. */
-    function profileFromDocFormatFields(name = '') {
-        const api = formatProfilesApi();
-        if (!api) return null;
+    function readForgottenProfileNames() {
+        const raw = safeLocalStorageGet(FORGOTTEN_PROFILES_KEY);
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter(name => typeof name === 'string') : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function setProfileForgotten(name, forgotten) {
+        const wanted = String(name || '').trim().toLowerCase();
+        if (!wanted) return;
+        const others = readForgottenProfileNames().filter(entry => entry !== wanted);
+        safeLocalStorageSet(FORGOTTEN_PROFILES_KEY, JSON.stringify(forgotten ? [...others, wanted] : others));
+    }
+
+    /* Lo que dicen ahora mismo los campos del cuadro, como ajustes. */
+    function settingsFromDocFormatFields() {
         const outline = readOwnOutlineFromFields();
-        return api.profileFromSettings({
+        return {
             documentFormat: readDocumentFormatFields('doc-format-fields'),
             documentToc: outline.toc,
             documentTocDepth: outline.tocDepth,
             documentNumberSections: outline.numberSections,
-        }, name);
+        };
     }
 
+    /* Lo mismo, en forma de perfil. */
+    function profileFromDocFormatFields(name = '') {
+        const api = formatProfilesApi();
+        if (!api) return null;
+        return api.profileFromSettings(settingsFromDocFormatFields(), name);
+    }
+
+    /* Lo que el documento abierto lleva escrito, como ajustes. */
+    function settingsFromCurrentDocument() {
+        const outline = currentDocumentOutline();
+        return {
+            documentFormat: currentDocumentFormat(),
+            documentToc: outline.toc,
+            documentTocDepth: outline.tocDepth,
+            documentNumberSections: outline.numberSections,
+        };
+    }
+
+    function currentDocumentProfileName() {
+        const api = formatProfilesApi();
+        if (!api || !markdownEditor) return '';
+        const { frontMatter } = splitDocumentFrontMatter(markdownEditor.getValue());
+        return api.readDocumentProfileName(frontMatter);
+    }
+
+    /*
+      Un documento que nombra un perfil que este equipo no tiene lo trae
+      consigo: sus propios ajustes son ese perfil, así que se compone con ellos
+      y se añade a la lista sin preguntar. Si aquí ya hay uno que se llama
+      igual, no se toca, aunque diga otra cosa: puede ser otro perfil con el
+      mismo nombre, y el cuadro ya avisa de que el documento no coincide.
+    */
+    function adoptDocumentProfile() {
+        const api = formatProfilesApi();
+        if (!api) return;
+        const name = currentDocumentProfileName();
+        if (!name || findFormatProfile(name)) return;
+        if (readForgottenProfileNames().includes(name.toLowerCase())) return;
+        const profile = api.profileFromSettings(settingsFromCurrentDocument(), name);
+        if (api.isEmptyProfile(profile)) return;
+        if (!storeFormatProfiles([...readFormatProfiles(), profile])) return;
+        const show = () => updateExportStatus(formatTranslation(
+            'profile_adopted',
+            'Perfil «{name}» añadido desde el documento.',
+            { name: profile.name },
+        ));
+        if (window.__edimarkLanguageReady) window.__edimarkLanguageReady.then(show);
+        else show();
+    }
+    window.__edimarkAdoptDocumentProfile = adoptDocumentProfile;
+
     function syncFormatProfileButtons() {
-        const chosen = Boolean(docFormatProfileSelect && docFormatProfileSelect.value);
+        const chosen = Boolean(docFormatProfileSelect && findFormatProfile(docFormatProfileSelect.value));
         if (docFormatProfileApplyBtn) docFormatProfileApplyBtn.disabled = !chosen;
         if (docFormatProfileDeleteBtn) docFormatProfileDeleteBtn.disabled = !chosen;
     }
 
+    /*
+      El perfil del documento sale elegido al abrir el cuadro, y su rótulo dice
+      si los campos se han apartado de él o si en este equipo ya no está (se
+      borró aquí): «Ninguno» hacía creer que el perfil no se había cargado.
+    */
     function renderFormatProfiles(selected = null) {
         if (!docFormatProfileSelect) return;
         const wanted = selected === null ? docFormatProfileSelect.value : selected;
+        const api = formatProfilesApi();
         const profiles = readFormatProfiles();
+        const ownName = documentProfileName.toLowerCase();
+        const settings = settingsFromDocFormatFields();
         docFormatProfileSelect.replaceChildren();
         const none = document.createElement('option');
         none.value = '';
         none.textContent = getTranslation('profile_none', 'Ninguno');
         docFormatProfileSelect.appendChild(none);
-        profiles.forEach((profile) => {
+        const addOption = (value, label) => {
             const option = document.createElement('option');
-            option.value = profile.name;
-            option.textContent = profile.name;
+            option.value = value;
+            option.textContent = label;
             docFormatProfileSelect.appendChild(option);
+        };
+        profiles.forEach((profile) => {
+            const modified = ownName && profile.name.toLowerCase() === ownName
+                && api && !api.matchesProfile(profile, settings);
+            addOption(profile.name, modified
+                ? formatTranslation('profile_modified', '{name} (modificado)', { name: profile.name })
+                : profile.name);
         });
-        docFormatProfileSelect.value = profiles.some(profile => profile.name === wanted) ? wanted : '';
+        if (ownName && !profiles.some(profile => profile.name.toLowerCase() === ownName)) {
+            addOption(documentProfileName, formatTranslation(
+                'profile_missing',
+                '{name} (no guardado en este equipo)',
+                { name: documentProfileName },
+            ));
+        }
+        const options = Array.from(docFormatProfileSelect.options);
+        const match = options.find(option => option.value && option.value.toLowerCase() === String(wanted || '').toLowerCase());
+        docFormatProfileSelect.value = match ? match.value : '';
         syncFormatProfileButtons();
     }
 
@@ -15417,13 +15530,7 @@ window.onload = async () => {
     function applyFormatProfileToFields(profile) {
         const api = formatProfilesApi();
         if (!api || !profile) return;
-        const outline = readOwnOutlineFromFields();
-        const applied = api.applyProfileToSettings({
-            documentFormat: readDocumentFormatFields('doc-format-fields'),
-            documentToc: outline.toc,
-            documentTocDepth: outline.tocDepth,
-            documentNumberSections: outline.numberSections,
-        }, profile);
+        const applied = api.applyProfileToSettings(settingsFromDocFormatFields(), profile);
         fillDocumentFormatFields('doc-format-fields', applied.documentFormat);
         if (docOwnToc) docOwnToc.value = outlineFieldValue(applied.documentToc);
         if (docOwnTocDepth) docOwnTocDepth.value = applied.documentTocDepth === '' ? '' : String(applied.documentTocDepth);
@@ -15441,12 +15548,18 @@ window.onload = async () => {
         }
         const profile = profileFromDocFormatFields(clean);
         if (!profile || api.isEmptyProfile(profile)) {
-            showFormatProfileError('profile_empty', 'No hay ningún ajuste propio que guardar en un perfil.');
+            showFormatProfileError(
+                'profile_empty',
+                'Un perfil guarda el texto, la página y el índice, y no has fijado ninguno. El idioma y el autor son de cada documento y no entran en el perfil.',
+            );
             return false;
         }
         const others = readFormatProfiles().filter(entry => entry.name.toLowerCase() !== clean.toLowerCase());
         const replaced = others.length !== readFormatProfiles().length;
         if (!storeFormatProfiles([...others, profile])) return false;
+        setProfileForgotten(profile.name, false);
+        // Los campos son ahora ese perfil: el documento lo seguirá al aplicar.
+        documentProfileName = profile.name;
         renderFormatProfiles(profile.name);
         toggleFormatProfileForm(false);
         notifyUser(formatTranslation(
@@ -15488,7 +15601,17 @@ window.onload = async () => {
         // Siempre desde el documento: cancelar tiene que descartar de verdad.
         fillDocumentFormatFields('doc-format-fields', currentDocumentFormat());
         fillDocumentOwnFields();
-        renderFormatProfiles('');
+        documentProfileName = currentDocumentProfileName();
+        /*
+          Sin la línea, el perfil cuyos ajustes son exactamente los del
+          documento: así lo reconocen también los documentos de antes. Solo se
+          elige en el cuadro; la línea se escribe al pulsar «Aplicar».
+        */
+        if (!documentProfileName) {
+            const found = formatProfilesApi()?.findProfileForSettings(readFormatProfiles(), settingsFromCurrentDocument());
+            if (found) documentProfileName = found.name;
+        }
+        renderFormatProfiles(documentProfileName);
         toggleFormatProfileForm(false);
         refreshInheritedDocumentHints();
         // El foco, en la pestaña con la que se abre y no en la primera: es la
@@ -15540,11 +15663,23 @@ window.onload = async () => {
     if (docFormatProfileSelect) {
         docFormatProfileSelect.addEventListener('change', syncFormatProfileButtons);
     }
+    // El rótulo «(modificado)» sigue a los campos mientras se cambian.
+    if (docFormatOverlay) {
+        const refreshProfileLabels = (event) => {
+            if (docFormatOverlay.style.display !== 'flex') return;
+            if (event.target && event.target.closest && event.target.closest('#doc-format-profile, #doc-format-profile-form')) return;
+            renderFormatProfiles(null);
+        };
+        docFormatOverlay.addEventListener('change', refreshProfileLabels);
+        docFormatOverlay.addEventListener('input', refreshProfileLabels);
+    }
     if (docFormatProfileApplyBtn) {
         docFormatProfileApplyBtn.addEventListener('click', () => {
             const profile = findFormatProfile(docFormatProfileSelect ? docFormatProfileSelect.value : '');
             if (!profile) return;
             applyFormatProfileToFields(profile);
+            documentProfileName = profile.name;
+            renderFormatProfiles(profile.name);
             toggleFormatProfileForm(false);
         });
     }
@@ -15576,6 +15711,9 @@ window.onload = async () => {
             if (!confirmed) return;
             const others = readFormatProfiles().filter(entry => entry.name !== profile.name);
             if (!storeFormatProfiles(others)) return;
+            setProfileForgotten(profile.name, true);
+            // Quien lo borra con este documento delante tampoco lo quiere en él.
+            if (documentProfileName.toLowerCase() === profile.name.toLowerCase()) documentProfileName = '';
             renderFormatProfiles('');
             toggleFormatProfileForm(false);
         });
@@ -15588,8 +15726,11 @@ window.onload = async () => {
             if (docOwnLanguageCode) docOwnLanguageCode.value = '';
             if (docOwnAuthor) docOwnAuthor.value = '';
             if (docOwnToc) docOwnToc.value = '';
+            if (docOwnTocDepth) docOwnTocDepth.value = '';
             if (docOwnNumberSections) docOwnNumberSections.value = '';
+            documentProfileName = '';
             syncOwnLanguageCodeField();
+            renderFormatProfiles('');
         });
     }
     /*
@@ -15629,7 +15770,7 @@ window.onload = async () => {
                 own.setLanguage(readOwnLanguageFromFields());
                 own.setAuthor(docOwnAuthor ? docOwnAuthor.value : '');
             }
-            setDocumentFormat(readDocumentFormatFields('doc-format-fields'), readOwnOutlineFromFields());
+            setDocumentFormat(readDocumentFormatFields('doc-format-fields'), readOwnOutlineFromFields(), documentProfileName);
             toggleDocFormatModal(false);
         });
     }
@@ -16851,6 +16992,9 @@ window.onload = async () => {
         if (typeof requestIdleCallback === 'function') requestIdleCallback(limpiar, { timeout: 5000 });
         else setTimeout(limpiar, 2000);
     });
+
+    // El documento con el que arranca puede traer un perfil que aquí no está.
+    if (typeof window.__edimarkAdoptDocumentProfile === 'function') window.__edimarkAdoptDocumentProfile();
 
     // Fuera la cortina: la ventana ya está montada y responde.
     hideStartupCurtain();

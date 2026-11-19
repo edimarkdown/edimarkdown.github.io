@@ -142,7 +142,7 @@ Junto al contador de caracteres hay un botón con el idioma del documento (`ES`,
 
 Los márgenes de la página se fijan aquí. Un `<style>` escrito en el documento cambia el aspecto del texto, como el color o el fondo, pero solo dentro de la hoja, y no mueve los márgenes ni las medidas de la página. El HTML exportado lo lleva tal cual.
 
-Todo lo que fijes se guarda dentro del propio `.md`, en unas líneas de metadatos al principio del archivo, así que viaja con el documento a cualquier equipo. Si repites los mismos ajustes en varios trabajos, guárdalos como **perfil** (arriba del cuadro) para aplicarlos de un clic en otro documento.
+Todo lo que fijes se guarda dentro del propio `.md`, en unas líneas de metadatos al principio del archivo, así que viaja con el documento a cualquier equipo. Si repites los mismos ajustes en varios trabajos, guárdalos como **perfil** (arriba del cuadro) para aplicarlos de un clic en otro documento. El documento recuerda qué perfil se le aplicó, y uno anterior lo reconoce si sus ajustes son exactamente los de un perfil guardado: al abrir el cuadro lo verás elegido, con «(modificado)» si después has cambiado algún ajuste. Si lo abres en un equipo que no tiene ese perfil, se añade solo a su lista. Un perfil que borres no vuelve, aunque abras documentos que lo usaron. El perfil guarda el texto, la página y el índice; el idioma y el autor son de cada documento.
 
 **Configuración → Opciones generales…** guarda los valores de partida para los documentos nuevos: idioma, autor, texto y página, portada del EPUB, bibliografía y opciones de LaTeX.
 

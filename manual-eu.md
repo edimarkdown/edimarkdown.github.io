@@ -142,7 +142,7 @@ Karaktere-kontagailuaren ondoan dokumentuaren hizkuntza duen botoi bat dago (`ES
 
 Orriaren marjinak hemen finkatzen dira. Dokumentuan idatzitako `<style>` batek testuaren itxura aldatzen du, kolorea edo atzealdea adibidez, baina orriaren barruan bakarrik, eta ez ditu orriaren marjinak eta neurriak mugitzen. Esportatutako HTMLak dagoen bezala darama.
 
-Finkatzen duzun guztia `.md` fitxategiaren barruan gordetzen da, fitxategiaren hasieran dauden metadatu-lerroetan, beraz dokumentuarekin batera edozein ekipotara bidaiatzen du. Lan ezberdinetan ezarpen berak errepikatzen badituzu, gorde **profil** gisa (koadroaren goialdean) beste dokumentu batean klik batez aplikatzeko.
+Finkatzen duzun guztia `.md` fitxategiaren barruan gordetzen da, fitxategiaren hasieran dauden metadatu-lerroetan, beraz dokumentuarekin batera edozein ekipotara bidaiatzen du. Lan ezberdinetan ezarpen berak errepikatzen badituzu, gorde **profil** gisa (koadroaren goialdean) beste dokumentu batean klik batez aplikatzeko. Dokumentuak gogoratzen du zein profil aplikatu zitzaion, eta aurreko batek ezagutzen du bere ezarpenak gordetako profil batenak zehazki badira: koadroa irekitzean hautatuta ikusiko duzu, «(aldatua)» oharrarekin ondoren ezarpenen bat aldatu baduzu. Profil hori ez duen ekipo batean irekitzen baduzu, bere zerrendara bakarrik gehitzen da. Ezabatzen duzun profila ez da itzultzen, hura erabili zuten dokumentuak irekita ere. Profilak testua, orria eta aurkibidea gordetzen ditu; hizkuntza eta egilea dokumentu bakoitzarenak dira.
 
 **Ezarpenak → Aukera orokorrak…** atalak dokumentu berrien abiapuntuko balioak gordetzen ditu: hizkuntza, egilea, testua eta orria, EPUBaren azala, bibliografia eta LaTeX aukerak.
 

@@ -142,7 +142,7 @@ Al costat del comptador de caràcters hi ha un botó amb l'idioma del document (
 
 Els marges de la pàgina es fixen aquí. Un `<style>` escrit en el document canvia l'aspecte del text, com el color o el fons, però només dins del full, i no mou els marges ni les mides de la pàgina. L'HTML exportat el conserva tal qual.
 
-Tot el que fixis es desa dins del mateix `.md`, en unes línies de metadades al principi de l'arxiu, així que viatja amb el document a qualsevol equip. Si repeteixes els mateixos ajustos en diversos treballs, desa'ls com a **perfil** (a dalt del quadre) per aplicar-los d'un clic a un altre document.
+Tot el que fixis es desa dins del mateix `.md`, en unes línies de metadades al principi de l'arxiu, així que viatja amb el document a qualsevol equip. Si repeteixes els mateixos ajustos en diversos treballs, desa'ls com a **perfil** (a dalt del quadre) per aplicar-los d'un clic a un altre document. El document recorda quin perfil se li va aplicar, i un d'anterior el reconeix si els seus ajustos són exactament els d'un perfil desat: en obrir el quadre el veuràs triat, amb «(modificat)» si després has canviat algun ajust. Si l'obres en un equip que no té aquest perfil, s'afegeix sol a la seva llista. Un perfil que esborris no torna, encara que obris documents que el van fer servir. El perfil desa el text, la pàgina i l'índex; l'idioma i l'autor són de cada document.
 
 **Configuració → Opcions generals…** desa els valors de partida per als documents nous: idioma, autor, text i pàgina, portada de l'EPUB, bibliografia i opcions de LaTeX.
 

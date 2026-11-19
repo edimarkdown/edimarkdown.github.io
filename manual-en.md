@@ -142,7 +142,7 @@ Next to the character count is a button showing the document's language (`ES`, `
 
 Page margins are set here. A `<style>` written in the document changes how the text looks, such as its colour or background, but only inside the sheet, and it does not move the page margins or measurements. The exported HTML keeps it as it is.
 
-Everything you set is saved inside the `.md` file itself, in metadata lines at the top, so it travels with the document to any computer. If you repeat the same settings across several jobs, save them as a **profile** (at the top of the dialog) to apply them with one click to another document.
+Everything you set is saved inside the `.md` file itself, in metadata lines at the top, so it travels with the document to any computer. If you repeat the same settings across several jobs, save them as a **profile** (at the top of the dialog) to apply them with one click to another document. The document remembers which profile was applied to it, and an older one recognises it if its settings are exactly those of a saved profile: when you open the dialog you will see it selected, marked “(modified)” if you have changed a setting since. If you open it on a computer that does not have that profile, it is added to that computer's list automatically. A profile you delete does not come back, even if you open documents that used it. A profile keeps the text, page and table-of-contents settings; language and author belong to each document.
 
 **Settings → General options…** sets the defaults for new documents: language, author, text and page, EPUB cover, bibliography and LaTeX options.
 

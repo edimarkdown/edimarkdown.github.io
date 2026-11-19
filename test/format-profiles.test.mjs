@@ -187,3 +187,43 @@ test('un perfil vacío da un archivo mínimo que se vuelve a leer', () => {
   assert.equal(isEmptyProfile(read.profile), true);
   assert.deepEqual(applyProfileToSettings(SETTINGS, read.profile).documentFormat, applyProfileToSettings(SETTINGS, {}).documentFormat);
 });
+
+test('el documento recuerda de qué perfil salió con una línea propia', () => {
+  const { DOCUMENT_PROFILE_KEY, readDocumentProfileName, documentProfileEntries } = profiles;
+  assert.equal(DOCUMENT_PROFILE_KEY, 'format-profile');
+  assert.deepEqual(documentProfileEntries('TFG "final"'), [
+    { key: 'format-profile', lines: ['format-profile: "TFG \\"final\\""'] },
+  ]);
+  assert.deepEqual(documentProfileEntries('   '), [], 'sin nombre no se escribe nada');
+
+  // Lo que se escribe se vuelve a leer igual, con comillas o sin ellas.
+  const written = documentProfileEntries('TFG "final"')[0].lines[0];
+  assert.equal(readDocumentProfileName(`---\ntitle: X\n${written}\n---`), 'TFG "final"');
+  assert.equal(readDocumentProfileName("---\nformat-profile: 'Apuntes'\n---"), 'Apuntes');
+  assert.equal(readDocumentProfileName('---\nformat-profile: Apuntes de clase\n---'), 'Apuntes de clase');
+  assert.equal(readDocumentProfileName('---\ntitle: X\n---'), '');
+  assert.equal(readDocumentProfileName(undefined), '');
+  // No se confunde con la primera línea de un archivo de perfil.
+  assert.equal(readDocumentProfileName('edimark-profile: 1\nname: "TFG"'), '');
+});
+
+test('un documento sin la línea se reconoce solo por una coincidencia exacta', () => {
+  const { findProfileForSettings, profileEqualsSettings } = profiles;
+  const apuntes = profileFromSettings({ documentFormat: { fontSize: '12', printHeader: 'name' } }, 'Apuntes');
+  const letra = profileFromSettings({ documentFormat: { fontSize: '12' } }, 'Letra');
+  const settings = { documentFormat: { fontSize: '12', printHeader: 'name' } };
+
+  assert.equal(profileEqualsSettings(apuntes, settings), true);
+  // El de la letra sola fija menos de lo que lleva el documento: no es el suyo.
+  assert.equal(profileEqualsSettings(letra, settings), false);
+  assert.equal(findProfileForSettings([letra, apuntes], settings).name, 'Apuntes');
+
+  // Un ajuste de más en el documento y ya no es ninguno.
+  assert.equal(findProfileForSettings([apuntes], { documentFormat: { fontSize: '12', printHeader: 'name', align: 'justify' } }), null);
+  // Dos perfiles iguales: no se elige ninguno.
+  const otro = { ...apuntes, name: 'Otro' };
+  assert.equal(findProfileForSettings([apuntes, otro], settings), null);
+  // Un documento sin ajustes propios no es de ningún perfil.
+  assert.equal(findProfileForSettings([apuntes], {}), null);
+  assert.equal(findProfileForSettings(undefined, settings), null);
+});
