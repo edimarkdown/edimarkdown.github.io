@@ -4,6 +4,10 @@ Todos los cambios de EdiMarkdown (antes EdiMarkWeb), de la versión más recient
 
 El formato sigue la idea de [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [versionado semántico](https://semver.org/lang/es/).
 
+## [3.5.9] - 2026-11-19
+
+- Al escribir en el editor Markdown, la vista previa sigue enseñando lo que se escribe. Antes, en un documento de varias páginas, cada repintado la descolocaba: lo que se estaba escribiendo quedaba por debajo de la pantalla, tanto más lejos cuantas más páginas tuviera encima. Pasaba igual en una lista, una tabla, junto a una fórmula o en un párrafo, y en todos los navegadores y aplicaciones.
+
 ## [3.5.8] - 2026-11-12
 
 - La cabecera y el pie al imprimir se ven ya en el editor visual: en Chrome, Edge y la aplicación de Windows, cada página lleva en sus márgenes lo que saldrá en el papel —el nombre del documento, la fecha y el número de página—, con su letra y en su sitio. Antes solo se veían al abrir el cuadro de impresión.
