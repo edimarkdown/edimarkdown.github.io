@@ -15052,21 +15052,44 @@ window.onload = async () => {
       disposición dispara el observador muchas veces seguidas.
     */
     let repintadoDeCortes = null;
-    function schedulePageBreaks() {
+    /*
+      Lo que mide posiciones en la hoja tiene que hacerlo con los cortes ya
+      puestos. Rehacer la hoja crea los bloques sin sus saltos de página, así
+      que medir entre medias da alturas de un documento sin páginas: la
+      sincronización de los paneles colocaba la vista ahí y, al volver los
+      saltos, el texto que se escribía bajaba lo que suman las páginas de
+      encima y salía de la pantalla. Quien lo necesite pasa aquí lo que tiene
+      que hacer después.
+    */
+    let trasLosCortes = [];
+    function schedulePageBreaks(despues) {
+        if (typeof despues === 'function') trasLosCortes.push(despues);
         if (repintadoDeCortes) return;
         repintadoDeCortes = requestAnimationFrame(() => {
             repintadoDeCortes = null;
-            /*
-              Primero la lupa y después los cortes: el ajuste al ancho cambia
-              lo que mide la hoja, y midiendo antes las páginas saldrían con el
-              aumento anterior. Aplicado aquí mismo, la medida que viene
-              después ya es la buena.
-            */
-            aplicarAjusteAlAncho();
-            fitWidePreformattedBlocks(document.getElementById('html-output'));
-            // El ancho ha cambiado, y con él hasta dónde puede llegar la lupa.
-            refrescarTopeDeLaLupa();
-            refreshPageBreaks();
+            try {
+                /*
+                  Primero la lupa y después los cortes: el ajuste al ancho cambia
+                  lo que mide la hoja, y midiendo antes las páginas saldrían con el
+                  aumento anterior. Aplicado aquí mismo, la medida que viene
+                  después ya es la buena.
+                */
+                aplicarAjusteAlAncho();
+                fitWidePreformattedBlocks(document.getElementById('html-output'));
+                // El ancho ha cambiado, y con él hasta dónde puede llegar la lupa.
+                refrescarTopeDeLaLupa();
+                refreshPageBreaks();
+            } finally {
+                const pendientes = trasLosCortes;
+                trasLosCortes = [];
+                pendientes.forEach((tarea) => {
+                    try {
+                        tarea();
+                    } catch (error) {
+                        console.error(error);
+                    }
+                });
+            }
         });
     }
     window.__schedulePageBreaks = schedulePageBreaks;
@@ -16622,7 +16645,9 @@ window.onload = async () => {
       repaintTimer = null;
       lastRepaintAt = Date.now();
       updateHtml();
-      syncFromMarkdown();
+      // Con los saltos de página ya repuestos: sin ellos, la posición que se
+      // mide no es la que tendrá el bloque un fotograma después.
+      schedulePageBreaks(syncFromMarkdown);
       marcarHojaAtrasada(false);
     }
     function schedulePreviewRepaint() {

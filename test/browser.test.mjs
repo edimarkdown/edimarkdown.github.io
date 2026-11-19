@@ -5995,6 +5995,70 @@ test('las barras verticales mantienen sincronizados los dos paneles', async (t) 
 });
 
 /*
+  Escribir rehace la hoja, y sus bloques nacen sin los saltos de página, que
+  vuelven un fotograma después. La vista se colocaba con las medidas de esa
+  hoja sin páginas y, al volver los saltos, lo que se estaba escribiendo
+  bajaba lo que sumaban las páginas de encima y salía de la pantalla: en la
+  página cinco, unos 700 px. Se escribe en una lista, una tabla y junto a una
+  fórmula, con el texto bien entrado en el documento.
+*/
+test('al escribir, la hoja sigue enseñando lo que se escribe', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+  await conLaHojaATamanoReal(page);
+
+  await page.locator('#new-tab-btn').click();
+  const relleno = i => `Texto de relleno del apartado ${i}. `.repeat(10);
+  const documento = [];
+  for (let i = 1; i <= 30; i += 1) {
+    documento.push(`## Apartado ${i}`, '', relleno(i), '');
+    if (i === 10) documento.push('- PUNTO_LISTA primero', '- segundo', '');
+    if (i === 18) documento.push('| A | B |', '|---|---|', '| 1 | CELDA_TABLA |', '| 2 | otra |', '');
+    if (i === 24) documento.push('$$', 'E = mc^2 % FORMULA_BLOQUE', '$$', '');
+  }
+  await page.locator('#markdown-input').fill(documento.join('\n'));
+  await page.waitForFunction(() => document.querySelectorAll('.page-sheet').length > 3);
+
+  for (const marca of ['PUNTO_LISTA', 'CELDA_TABLA', 'FORMULA_BLOQUE']) {
+    // La línea, a media altura del editor, con la hoja siguiéndola.
+    await page.evaluate((buscada) => {
+      const editor = document.getElementById('markdown-input');
+      const linea = editor.value.split('\n').findIndex(texto => texto.includes(buscada));
+      editor.scrollTop = markdownEditor.lineMetrics(linea).top - editor.clientHeight * 0.5;
+      editor.dispatchEvent(new Event('scroll'));
+    }, marca);
+    await page.waitForTimeout(200);
+    const punto = await page.evaluate((buscada) => {
+      const editor = document.getElementById('markdown-input');
+      const linea = editor.value.split('\n').findIndex(texto => texto.includes(buscada));
+      const caja = editor.getBoundingClientRect();
+      return { x: caja.left + 40, y: caja.top + markdownEditor.lineMetrics(linea).top - editor.scrollTop + 8 };
+    }, marca);
+    await page.mouse.click(punto.x, punto.y);
+    await page.keyboard.press('End');
+    await page.keyboard.type(' añadido', { delay: 10 });
+    // Repintado (cada 150 ms como mucho) y, al fotograma siguiente, los cortes.
+    await page.waitForTimeout(600);
+
+    const medida = await page.evaluate(() => {
+      const editor = document.getElementById('markdown-input');
+      const mesa = document.getElementById('preview-desk');
+      const linea = markdownEditor.getCursor().line;
+      const bloque = previewBlockForLine(linea);
+      const caja = bloque.el.getBoundingClientRect();
+      const cajaMesa = mesa.getBoundingClientRect();
+      return {
+        etiqueta: bloque.el.tagName,
+        visible: caja.bottom > cajaMesa.top && caja.top < cajaMesa.bottom,
+        enLaHoja: Math.round(caja.top - cajaMesa.top),
+        enElEditor: Math.round(markdownEditor.lineMetrics(linea).top - editor.scrollTop),
+      };
+    });
+    assert.ok(medida.visible, `${marca}: la hoja dejó fuera de la vista lo que se escribía: ${JSON.stringify(medida)}`);
+  }
+});
+
+/*
   La barra de formato escribía siempre en el Markdown y se apagaba al pasar a
   la hoja. Ahora trabaja en los dos lados: en la hoja cambia el HTML y el
   Markdown se escribe solo por el camino de siempre. Lo que se comprueba es el
