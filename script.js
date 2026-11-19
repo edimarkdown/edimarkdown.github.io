@@ -3041,8 +3041,8 @@ function createTextareaEditor(textarea) {
             textarea.scrollLeft = scrollLeft;
             triggerChange();
         },
-        focus() {
-            textarea.focus();
+        focus(options) {
+            textarea.focus(options);
         },
         hasFocus() {
             return document.activeElement === textarea;
@@ -3755,9 +3755,13 @@ function applyScroll(element, position) {
 function restoreDocView(view) {
     if (!markdownEditor) return;
     /*
-      El orden importa: enfocar lleva la vista al cursor, así que el
-      desplazamiento se repone después. Y se repite en el fotograma siguiente
-      porque la hoja crece al renderizarse las fórmulas y las imágenes.
+      El orden importa: primero el cursor y después el foco, y este sin
+      desplazar. Enfocar con el cursor ya puesto lleva la vista a él, y WebKit
+      lo hace además por su cuenta un momento después, cuando ya se había
+      repuesto el desplazamiento: la pestaña volvía con los dos paneles donde
+      estaba el cursor y no donde se dejaron. El desplazamiento se repone al
+      final, y otra vez en el fotograma siguiente, porque la hoja crece al
+      renderizarse las fórmulas y las imágenes.
     */
     if (view && view.cursor && typeof markdownEditor.setCursor === 'function') {
         skipNextCursorSync = true;
@@ -3768,6 +3772,15 @@ function restoreDocView(view) {
     } else if (typeof markdownEditor.setCursor === 'function') {
         markdownEditor.setCursor({ line: 0, ch: 0 });
     }
+    /*
+      Reponer el cursor hace que el navegador lance más tarde un `select`, ya
+      fuera del aviso de arriba, y la hoja corría a la línea del cursor. Si se
+      había dejado lejos de él con la barra, la pestaña volvía con la hoja en
+      el cursor y el Markdown en otro sitio. Esa selección es la que ya había:
+      no pide mover nada.
+    */
+    if (typeof markdownEditor.focus === 'function') markdownEditor.focus({ preventScroll: true });
+    if (typeof window.__seleccionSinSincronizar === 'function') window.__seleccionSinSincronizar();
     const scroller = typeof markdownEditor.getScrollerElement === 'function'
         ? markdownEditor.getScrollerElement()
         : null;
@@ -3823,8 +3836,12 @@ function switchTo(id, { deferPreview = false } = {}) {
       repuesto dónde estaban.
     */
     skipNextMarkdownSync = true;
+    // Poner el texto mueve el cursor, pero el que cuenta es el que se repone
+    // después: seguirlo llevaba la hoja a una línea que no es la de esta vista.
+    skipNextCursorSync = true;
     markdownEditor.setValue(doc.md);
     skipNextMarkdownSync = false;
+    skipNextCursorSync = false;
     if (typeof markdownEditor.clearHistory === 'function') {
         markdownEditor.clearHistory();
     }
@@ -3842,7 +3859,6 @@ function switchTo(id, { deferPreview = false } = {}) {
             console.debug('No se pudo cargar el estilo del documento:', error);
         });
     }
-    markdownEditor.focus();
     restoreDocView(doc.view);
     updateDirtyIndicator(id, doc.md !== doc.lastSaved);
 }
@@ -16568,6 +16584,10 @@ window.onload = async () => {
     let markdownScrollSyncFrame = null;
     let previewScrollSyncFrame = null;
     let markdownSelectionAtLastScroll = null;
+    // Lo mismo al reponer la vista de una pestaña (restoreDocView).
+    window.__seleccionSinSincronizar = () => {
+      markdownSelectionAtLastScroll = captureMarkdownSelectionFromTextarea();
+    };
 
     function syncFromMarkdownScroll() {
       markdownScrollSyncFrame = null;

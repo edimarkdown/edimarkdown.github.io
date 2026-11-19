@@ -6530,6 +6530,63 @@ test('cada pestaña vuelve por donde se quedó', async (t) => {
 });
 
 /*
+  Con el cursor en un sitio y la vista llevada a otro con la barra, la pestaña
+  volvía con el Markdown donde se dejó y la hoja en la línea del cursor: poner
+  el texto y reponer el cursor avisaban de un cursor nuevo, y la hoja lo
+  seguía. Los dos paneles tienen que volver donde estaban, y se tiene que
+  poder seguir escribiendo en el cursor.
+*/
+test('la pestaña vuelve donde se dejó aunque el cursor quede fuera de la vista', async (t) => {
+  const { context, page } = await openApp();
+  t.after(() => context.close());
+
+  await page.locator('#new-tab-btn').click();
+  const documento = [];
+  for (let i = 1; i <= 40; i += 1) documento.push(`## Sección ${i}`, '', `Texto de la sección ${i}. `.repeat(10), '');
+  await page.locator('#markdown-input').fill(documento.join('\n'));
+  await page.waitForFunction(() => document.querySelectorAll('#html-output h2').length === 40);
+
+  const llevarA = (titulo) => page.evaluate((buscado) => {
+    const editor = document.getElementById('markdown-input');
+    const linea = editor.value.split('\n').indexOf(buscado);
+    editor.scrollTop = markdownEditor.lineMetrics(linea).top - 200;
+    editor.dispatchEvent(new Event('scroll'));
+  }, titulo);
+  await llevarA('## Sección 10');
+  await page.waitForTimeout(200);
+  const punto = await page.evaluate(() => {
+    const caja = document.getElementById('markdown-input').getBoundingClientRect();
+    return { x: caja.left + 60, y: caja.top + 210 };
+  });
+  await page.mouse.click(punto.x, punto.y);
+  await page.waitForTimeout(200);
+  // Y ahora la barra, sin tocar el cursor, lejos de él.
+  await llevarA('## Sección 30');
+  await page.waitForTimeout(300);
+  const posiciones = () => page.evaluate(() => ({
+    cursor: document.getElementById('markdown-input').selectionStart,
+    markdown: Math.round(document.getElementById('markdown-input').scrollTop),
+    vista: Math.round(document.getElementById('preview-desk').scrollTop),
+  }));
+  const antes = await posiciones();
+
+  await page.locator('.tab').nth(0).click();
+  await page.waitForTimeout(300);
+  await page.locator('.tab').nth(1).click();
+  await page.waitForTimeout(600);
+  const despues = await posiciones();
+  assert.equal(despues.cursor, antes.cursor);
+  assert.ok(Math.abs(despues.markdown - antes.markdown) <= 4, `el editor volvió a ${despues.markdown} en vez de ${antes.markdown}`);
+  assert.ok(Math.abs(despues.vista - antes.vista) <= 4, `la hoja volvió a ${despues.vista} en vez de ${antes.vista}`);
+
+  await page.keyboard.type('ZZZ');
+  const escrito = await page.evaluate((cursor) => (
+    document.getElementById('markdown-input').value.slice(cursor, cursor + 3)
+  ), antes.cursor);
+  assert.equal(escrito, 'ZZZ', 'al volver, lo escrito no fue al cursor');
+});
+
+/*
   Listas de varios niveles con el tabulador, en los dos paneles. En la hoja se
   mueve el elemento a mano: el `outdent` de `execCommand` deshacía el punto en
   Firefox en vez de subirlo de nivel.
